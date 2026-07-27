@@ -1,0 +1,35 @@
+{
+  "schema_version": "hairbook.person_square_source_rejections.v1",
+  "rejections": [
+    {
+      "source_type": "hairbook_feed_post_photo",
+      "record_id": "01KXFVAPZ3T2Q78MEH5GD2D1XP",
+      "reason": "店内、後ろ髪、スタッフ写真、既存訴求文を組み合わせたコラージュで、人物優先かつ広告用の一枚写真という基準を満たさない。"
+    },
+    {
+      "source_type": "hairbook_feed_post_photo",
+      "record_id": "01KRMF7GQXNTG8EMT52CQGZN9D",
+      "reason": "店内写真とカット施術中の場面を含む三分割コラージュで、人物優先および施術中カット禁止の基準に抵触する。"
+    },
+    {
+      "source_type": "hairbook_feed_post_photo",
+      "record_id": "01KH388YQ7JRTXB5NFZ9NZEQ1Z",
+      "reason": "人物写真の上に店舗名と大きな訴求文が焼き込まれており、新しい広告コピーと競合する。"
+    },
+    {
+      "source_type": "hairbook_staff_profile_photo",
+      "record_id": "13915",
+      "reason": "スタッフが顧客の髪を切っている施術中カットのため、完成スタイルまたはスタッフ単独写真へ差し替える。"
+    },
+    {
+      "source_type": "hairbook_feed_post_photo",
+      "record_id": "01KKRRC17KW4P5S3Y5BQ0HEZZ2",
+      "reason": "ビフォー写真、既存訴求文、スタッフ切り抜きを組み合わせた広告コラージュで、新しいテキスト設計と競合する。"
+    },
+    {
+      "source_type": "hairbook_staff_profile_photo",
+      "record_id": "15515",
+      "reason": "顧客が施術台に横たわり、スタッフが目元を施術している最中の写真のため、同一店舗のスタッフ単独写真へ統一する。"
+    }
+  ]
+}

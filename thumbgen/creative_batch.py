@@ -61,6 +61,10 @@ EVENT_HEADERS = [
 ]
 OVERRIDE_HEADERS = ["id", "image_link", "hash", "title", "srow", "note"]
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
+SUPPORTED_DESIGN_VERSIONS = {
+    "person_v3_layered_v1",
+    "person_square_editorial_v1",
+}
 
 
 class BatchError(RuntimeError):
@@ -172,10 +176,10 @@ def validate_publish_manifest(manifest: dict[str, Any]) -> list[dict[str, Any]]:
             raise BatchError(
                 f"{product_id}: render_mode must be complete_banner"
             )
-        if entry.get("design_version") != "person_v3_layered_v1":
+        if entry.get("design_version") not in SUPPORTED_DESIGN_VERSIONS:
             raise BatchError(
-                f"{product_id}: design_version must be "
-                "person_v3_layered_v1"
+                f"{product_id}: unsupported design_version "
+                f"{entry.get('design_version')!r}"
             )
         image_url = str(entry.get("new_image_url") or "")
         if not image_url.startswith("https://"):

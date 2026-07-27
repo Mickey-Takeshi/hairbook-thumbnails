@@ -1,0 +1,40 @@
+{
+  "schema_version": "hairbook.person_square_source_overrides.v1",
+  "overrides": [
+    {
+      "salon_id": "44999",
+      "record_id": "tj-tajimi-official-person",
+      "page_url": "https://www.tj-tenkiyohou.co.jp/shop/5t-%E5%A4%9A%E6%B2%BB%E8%A6%8B%E5%BA%97-2.html",
+      "image_url": "https://www.tj-tenkiyohou.co.jp/wp1/wp-content/uploads/2020/05/IMG_5431.jpg",
+      "reason": "Hairbook page has only eye close-ups or text/logo imagery; this is a full-person photograph on the official page for the same store and phone number."
+    },
+    {
+      "salon_id": "45217",
+      "record_id": "mite-handa-yuri-official-profile",
+      "page_url": "https://beauty.hotpepper.jp/kr/slnH000668814/staff/W001262787/",
+      "image_url": "https://imgbp.hotp.jp/CSP/IMG_SRC_K/20/21/C058892021/C058892021.jpg",
+      "reason": "Hairbook has only a treatment collage for this staff landing page; the same salon, address and staff name are shown with a clear profile portrait on its official booking profile."
+    },
+    {
+      "salon_id": "45315",
+      "record_id": "cleo-aoyama-keita-sato-official-profile",
+      "page_url": "https://beauty.hotpepper.jp/slnH000178303/stylist/T000640303/",
+      "image_url": "https://imgbp.hotp.jp/CSP/IMG_SRC/44/83/B170124483/B170124483.jpg",
+      "reason": "The feed source is a text-heavy collage and the style gallery contains only back-of-head result photographs; this official booking profile provides a clear same-salon staff portrait."
+    },
+    {
+      "salon_id": "45315",
+      "record_id": "cleo-aoyama-naoki-hirayama-official-profile",
+      "page_url": "https://beauty.hotpepper.jp/slnH000178303/stylist/T001060921/",
+      "image_url": "https://imgbp.hotp.jp/CSP/IMG_SRC/53/13/B261745313/B261745313.jpg",
+      "reason": "The feed source is a text-heavy collage and the style gallery contains only back-of-head result photographs; this official booking profile provides a clear same-salon staff portrait."
+    },
+    {
+      "salon_id": "44645",
+      "record_id": "es-umeda-staff-16979",
+      "page_url": "https://hairbook.jp/staffs/16979/",
+      "image_url": "https://hairbook.jp/thumbnail/StaffProfile/16979/",
+      "reason": "A same-salon Hairbook staff portrait replaces a text-heavy before-image collage on another staff landing page."
+    }
+  ]
+}

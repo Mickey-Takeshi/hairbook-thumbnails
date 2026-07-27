@@ -458,11 +458,20 @@ def _fetch_page_info(
                 styles=styles,
             )
         )
-        if not candidates:
-            candidates = _staff_profile_candidates(
-                props=props,
-                stylist_id=stylist_id,
-            )
+        profile_candidates = _staff_profile_candidates(
+            props=props,
+            stylist_id=stylist_id,
+        )
+        candidate_keys = {
+            (candidate.source_type, candidate.record_id)
+            for candidate in candidates
+        }
+        candidates.extend(
+            candidate
+            for candidate in profile_candidates
+            if (candidate.source_type, candidate.record_id)
+            not in candidate_keys
+        )
         if not candidates:
             alternate = _alternate_staff_payload(
                 stylist_id=stylist_id,
@@ -480,11 +489,20 @@ def _fetch_page_info(
                     stylist_id=stylist_id,
                     styles=alternate_styles,
                 )
-                if not candidates:
-                    candidates = _staff_profile_candidates(
-                        props=alternate_props,
-                        stylist_id=stylist_id,
-                    )
+                alternate_profiles = _staff_profile_candidates(
+                    props=alternate_props,
+                    stylist_id=stylist_id,
+                )
+                alternate_keys = {
+                    (candidate.source_type, candidate.record_id)
+                    for candidate in candidates
+                }
+                candidates.extend(
+                    candidate
+                    for candidate in alternate_profiles
+                    if (candidate.source_type, candidate.record_id)
+                    not in alternate_keys
+                )
                 alternate_staff = alternate_props.get("staffProfile") or {}
                 if alternate_staff:
                     staff = alternate_staff

@@ -21,29 +21,29 @@ from typing import Any
 from PIL import Image
 
 from improve import assess
-from person_v3 import (
-    DESIGN_VERSION,
-    ManifestError,
-    _canonical_sha,
-    load_manifest,
-    sha256_file,
-)
+import person_square
+import person_v3
+from person_v3 import ManifestError, _canonical_sha, sha256_file
 
 QA_SCHEMA = "hairbook.person_v3_qa.v1"
 REVIEW_SCHEMA = "hairbook.person_v3_review.v1"
+SQUARE_QA_SCHEMA = "hairbook.person_square_qa.v1"
+SQUARE_REVIEW_SCHEMA = "hairbook.person_square_review.v1"
 OVERRIDE_SNAPSHOT_SCHEMA = "hairbook.thumbnail_override_snapshot.v1"
 PREFLIGHT_SCHEMA = "hairbook.person_v3_preflight.v1"
 PUBLISH_SCHEMA = "hairbook.person_v3_publish_manifest.v1"
 ROLLBACK_SCHEMA = "hairbook.person_v3_rollback_manifest.v1"
 CHECKLIST_VERSION = "person_v3_pre_publish_v1"
+SQUARE_CHECKLIST_VERSION = "person_square_pre_publish_v1"
 
 MANUAL_CHECKS = [
     ("source_match", "対象サロン／スタッフの人物画像である"),
+    ("not_treatment_scene", "商品・器具・店内・手元だけ／施術中の画像ではない"),
     ("person_unchanged", "顔・髪型・髪色・髪の長さ・体型が不自然に変わっていない"),
     ("safe_crop", "顔・髪が文字、CTA、Meta上の見切れで損なわれない"),
     ("copy_matches_landing", "店舗名・エリア・アクセス・訴求が着地先と一致する"),
     ("no_misleading_claim", "人物を施術実績だと過度に断定する表現がない"),
-    ("mobile_readable", "360×450pxで店名・アクセス・主訴求・CTAを判読できる"),
+    ("mobile_readable", "360px幅の実表示で店名・アクセス・主訴求・CTAを判読できる"),
     ("no_unwanted_text", "求人・価格・他店舗情報・第三者ロゴが残っていない"),
     ("rollback_identified", "現在画像と直前overrideの復元先が確認できる"),
 ]
@@ -71,6 +71,43 @@ def _write_json(path: Path, value: dict[str, Any]) -> None:
     )
 
 
+def _load_manifest(path: Path) -> dict[str, Any]:
+    probe = _load_json(path)
+    design_version = str(probe.get("design_version") or "")
+    if design_version == person_square.DESIGN_VERSION:
+        return person_square.load_manifest(path)
+    if design_version == person_v3.DESIGN_VERSION:
+        return person_v3.load_manifest(path)
+    raise GateError(f"unsupported design_version: {design_version!r}")
+
+
+def _creative_spec(manifest: dict[str, Any]) -> dict[str, Any]:
+    if manifest.get("design_version") == person_square.DESIGN_VERSION:
+        return {
+            "design_version": person_square.DESIGN_VERSION,
+            "render_schema": person_square.RENDER_SCHEMA_VERSION,
+            "qa_schema": SQUARE_QA_SCHEMA,
+            "review_schema": SQUARE_REVIEW_SCHEMA,
+            "checklist_version": SQUARE_CHECKLIST_VERSION,
+            "output_size": (person_square.W, person_square.H),
+            "preview_size": (
+                person_square.MOBILE_W,
+                person_square.MOBILE_H,
+            ),
+            "review_title": "人物優先・正方形版",
+        }
+    return {
+        "design_version": person_v3.DESIGN_VERSION,
+        "render_schema": "hairbook.person_v3_render_index.v1",
+        "qa_schema": QA_SCHEMA,
+        "review_schema": REVIEW_SCHEMA,
+        "checklist_version": CHECKLIST_VERSION,
+        "output_size": (person_v3.W, person_v3.H),
+        "preview_size": (person_v3.MOBILE_W, person_v3.MOBILE_H),
+        "review_title": "人物画像版V3",
+    }
+
+
 def _check(
     checks: list[dict[str, Any]],
     name: str,
@@ -96,9 +133,10 @@ def run_qa(
 ) -> dict[str, Any]:
     manifest_path = manifest_path.resolve()
     render_index_path = render_index_path.resolve()
-    manifest = load_manifest(manifest_path)
+    manifest = _load_manifest(manifest_path)
+    spec = _creative_spec(manifest)
     index = _load_json(render_index_path)
-    if index.get("schema_version") != "hairbook.person_v3_render_index.v1":
+    if index.get("schema_version") != spec["render_schema"]:
         raise GateError("unsupported render index schema")
 
     manifest_hash = sha256_file(manifest_path)
@@ -134,8 +172,11 @@ def run_qa(
         _check(
             checks,
             "design_version",
-            record.get("design_version") == DESIGN_VERSION,
-            f"render={record.get('design_version')!r}, expected={DESIGN_VERSION!r}",
+            record.get("design_version") == spec["design_version"],
+            (
+                f"render={record.get('design_version')!r}, "
+                f"expected={spec['design_version']!r}"
+            ),
         )
         _check(
             checks,
@@ -236,7 +277,7 @@ def run_qa(
                 _check(
                     checks,
                     "dimensions",
-                    output_size == (1080, 1350),
+                    output_size == spec["output_size"],
                     f"{output_size[0]}x{output_size[1]}",
                 )
                 _check(
@@ -277,9 +318,47 @@ def run_qa(
                 _check(
                     checks,
                     "mobile_preview_dimensions",
-                    preview_size == (360, 450),
+                    preview_size == spec["preview_size"],
                     f"{preview_size[0]}x{preview_size[1]}",
                 )
+
+        if spec["design_version"] == person_square.DESIGN_VERSION:
+            source_vision = (asset.get("source") or {}).get("vision") or {}
+            _check(
+                checks,
+                "source_person_score",
+                float(source_vision.get("person_score") or 0) >= 0.30,
+                f"person_score={source_vision.get('person_score')}",
+            )
+            _check(
+                checks,
+                "source_not_treatment_scene",
+                float(source_vision.get("treatment_risk") or 0) <= 0.72
+                and not source_vision.get("treatment_flags"),
+                (
+                    f"treatment_risk={source_vision.get('treatment_risk')}, "
+                    f"flags={source_vision.get('treatment_flags') or []}"
+                ),
+            )
+            copy_payload = asset.get("copy") or {}
+            copy_text = json.dumps(copy_payload, ensure_ascii=False)
+            _check(
+                checks,
+                "copy_has_no_html",
+                not bool(person_square.HTML_RE.search(copy_text)),
+                "copy is plain text",
+            )
+            access_lines = copy_payload.get("access") or []
+            _check(
+                checks,
+                "access_present",
+                bool(access_lines)
+                and not any(
+                    "アクセスを確認" in str(line)
+                    for line in access_lines
+                ),
+                " / ".join(str(line) for line in access_lines),
+            )
 
         status = (
             "fail"
@@ -308,8 +387,8 @@ def run_qa(
         else "pass"
     )
     payload = {
-        "schema_version": QA_SCHEMA,
-        "checklist_version": CHECKLIST_VERSION,
+        "schema_version": spec["qa_schema"],
+        "checklist_version": spec["checklist_version"],
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "manifest_path": str(manifest_path),
         "manifest_sha256": manifest_hash,
@@ -335,6 +414,7 @@ def _review_html(
     qa: dict[str, Any],
     review: dict[str, Any],
 ) -> str:
+    spec = _creative_spec(manifest)
     manifest_map = {
         str(asset["asset_id"]): asset for asset in manifest["assets"]
     }
@@ -354,6 +434,14 @@ def _review_html(
         source_uri = Path(record["source_path"]).resolve().as_uri()
         output_uri = Path(record["output_path"]).resolve().as_uri()
         preview_uri = Path(record["preview_path"]).resolve().as_uri()
+        output_label = (
+            f"{record.get('width', spec['output_size'][0])}×"
+            f"{record.get('height', spec['output_size'][1])}"
+        )
+        preview_label = (
+            f"{record.get('preview_width', spec['preview_size'][0])}×"
+            f"{record.get('preview_height', spec['preview_size'][1])}"
+        )
         checklist = "".join(
             f"""
             <label class="check">
@@ -376,8 +464,8 @@ def _review_html(
               </header>
               <div class="images">
                 <figure><img src="{html.escape(source_uri)}"><figcaption>元source</figcaption></figure>
-                <figure><img src="{html.escape(output_uri)}"><figcaption>完成 1080×1350</figcaption></figure>
-                <figure class="mobile"><img src="{html.escape(preview_uri)}"><figcaption>360×450</figcaption></figure>
+                <figure><img src="{html.escape(output_uri)}"><figcaption>完成 {html.escape(output_label)}</figcaption></figure>
+                <figure class="mobile"><img src="{html.escape(preview_uri)}"><figcaption>{html.escape(preview_label)}</figcaption></figure>
               </div>
               <div class="copy">
                 <b>アクセス</b> {html.escape(" / ".join(copy["access"]))}<br>
@@ -406,7 +494,7 @@ def _review_html(
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>人物V3 事前チェック</title>
+<title>{html.escape(spec["review_title"])} 事前チェック</title>
 <style>
 :root{{--ink:#221c15;--paper:#f5f1e8;--gold:#b08d57;--line:#d7cec0}}
 *{{box-sizing:border-box}} body{{margin:0;background:var(--paper);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans",sans-serif}}
@@ -416,7 +504,7 @@ main{{max-width:1500px;margin:28px auto;padding:0 24px 80px;display:grid;gap:24p
 .card{{background:white;border:1px solid var(--line);border-radius:20px;padding:22px;box-shadow:0 8px 28px rgba(34,28,21,.06)}}
 .card header{{display:flex;justify-content:space-between;align-items:start;margin-bottom:18px}} h2{{margin:4px 0 0;font-family:"Hiragino Mincho ProN",serif;font-size:30px}} .eyebrow{{margin:0;color:var(--gold);font-weight:700}}
 .status{{border-radius:999px;padding:8px 12px;font-size:12px;font-weight:800}} .status.pass{{background:#e7f3e5;color:#276128}} .status.fail{{background:#fde8e7;color:#9c2320}} .status.warn{{background:#fff2d4;color:#76520b}}
-.images{{display:grid;grid-template-columns:1fr 1fr 360px;gap:16px;align-items:start}} figure{{margin:0}} img{{display:block;width:100%;max-height:620px;object-fit:contain;background:#eee;border-radius:12px}} .mobile img{{width:360px;height:450px}} figcaption{{font-size:13px;color:#756a5c;margin-top:7px}}
+.images{{display:grid;grid-template-columns:1fr 1fr 360px;gap:16px;align-items:start}} figure{{margin:0}} img{{display:block;width:100%;max-height:620px;object-fit:contain;background:#eee;border-radius:12px}} .mobile img{{width:360px;aspect-ratio:{spec["preview_size"][0]}/{spec["preview_size"][1]};object-fit:contain}} figcaption{{font-size:13px;color:#756a5c;margin-top:7px}}
 .copy{{margin:18px 0;padding:14px 16px;background:#faf8f3;border-radius:12px;line-height:1.8}} .checks{{display:grid;grid-template-columns:1fr 1fr;gap:8px 18px}} .check{{display:flex;gap:9px;align-items:start;padding:9px;border-radius:9px}} .check:has(input:checked){{background:#edf6eb}} .check input{{width:18px;height:18px}}
 .decision{{display:grid;grid-template-columns:260px 1fr;gap:16px;margin-top:18px;padding-top:18px;border-top:1px solid var(--line)}} select,.notes{{width:100%;height:42px;margin-top:6px;border:1px solid var(--line);border-radius:9px;padding:0 10px}}
 @media(max-width:1000px){{.images{{grid-template-columns:1fr 1fr}}.mobile{{grid-column:1/-1}}.checks{{grid-template-columns:1fr}}}}
@@ -424,7 +512,7 @@ main{{max-width:1500px;margin:28px auto;padding:0 24px 80px;display:grid;gap:24p
 </head>
 <body>
 <div class="top">
-  <h1>人物画像版V3｜差し替え前チェック</h1>
+  <h1>{html.escape(spec["review_title"])}｜差し替え前チェック</h1>
   <label>レビュアー <input id="reviewer" placeholder="氏名"></label>
   <button id="export">レビューJSONを書き出す</button>
 </div>
@@ -453,7 +541,7 @@ document.getElementById('export').addEventListener('click', () => {{
   const blob = new Blob([JSON.stringify(review, null, 2) + '\\n'], {{type:'application/json'}});
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = 'person_v3_approvals.json';
+  a.download = '{html.escape(spec["design_version"])}_approvals.json';
   a.click();
   URL.revokeObjectURL(a.href);
 }});
@@ -470,10 +558,11 @@ def init_review(
     output_path: Path,
     html_path: Path | None = None,
 ) -> dict[str, Any]:
-    manifest = load_manifest(manifest_path)
+    manifest = _load_manifest(manifest_path)
+    spec = _creative_spec(manifest)
     render_index = _load_json(render_index_path)
     qa = _load_json(qa_path)
-    if qa.get("schema_version") != QA_SCHEMA:
+    if qa.get("schema_version") != spec["qa_schema"]:
         raise GateError("unsupported QA schema")
     qa_map = {
         str(asset["asset_id"]): asset for asset in qa.get("assets") or []
@@ -492,13 +581,13 @@ def init_review(
                 "decision": "review_pending",
                 "reviewer": "",
                 "reviewed_at": "",
-                "checklist_version": CHECKLIST_VERSION,
+                "checklist_version": spec["checklist_version"],
                 "checklist": {key: None for key, _ in MANUAL_CHECKS},
                 "notes": "",
             }
         )
     payload = {
-        "schema_version": REVIEW_SCHEMA,
+        "schema_version": spec["review_schema"],
         "environment": str(manifest.get("environment") or "production"),
         "manifest_sha256": sha256_file(manifest_path),
         "qa_report_sha256": sha256_file(qa_path),
@@ -549,7 +638,8 @@ def run_preflight(
     dry_run: bool,
     check_urls: bool,
 ) -> dict[str, Any]:
-    manifest = load_manifest(manifest_path)
+    manifest = _load_manifest(manifest_path)
+    spec = _creative_spec(manifest)
     render_index = _load_json(render_index_path)
     qa = _load_json(qa_path)
     approvals = _load_json(approvals_path)
@@ -565,7 +655,7 @@ def run_preflight(
     _check(
         checks,
         "qa_schema",
-        qa.get("schema_version") == QA_SCHEMA,
+        qa.get("schema_version") == spec["qa_schema"],
         str(qa.get("schema_version")),
     )
     _check(
@@ -577,7 +667,7 @@ def run_preflight(
     _check(
         checks,
         "review_schema",
-        approvals.get("schema_version") == REVIEW_SCHEMA,
+        approvals.get("schema_version") == spec["review_schema"],
         str(approvals.get("schema_version")),
     )
     _check(
@@ -708,7 +798,7 @@ def run_preflight(
                             "product_id": product_id,
                             "salon_id": str(asset.get("salon_id") or ""),
                             "asset_id": asset_id,
-                            "design_version": DESIGN_VERSION,
+                            "design_version": spec["design_version"],
                             "render_mode": "complete_banner",
                             "new_image_url": public_url,
                             "new_image_sha256": str(record.get("output_sha256") or ""),
@@ -721,7 +811,7 @@ def run_preflight(
                         "product_id": None,
                         "salon_id": str(asset.get("salon_id") or ""),
                         "asset_id": asset_id,
-                        "design_version": DESIGN_VERSION,
+                        "design_version": spec["design_version"],
                         "render_mode": "complete_banner",
                         "new_image_url": public_url,
                         "new_image_sha256": str(record.get("output_sha256") or ""),

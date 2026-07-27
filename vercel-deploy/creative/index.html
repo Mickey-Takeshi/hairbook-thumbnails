@@ -54,7 +54,7 @@ td{padding:8px 9px;border-bottom:1px solid #eee9e1;vertical-align:middle}tbody t
 .asset{background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.03)}
 .assethead{padding:13px 15px;border-bottom:1px solid var(--line);display:flex;gap:9px;align-items:center}.assethead .ttl{font-weight:800;font-size:13px}.assethead .sub{font:9px var(--mono);color:var(--faint)}
 .compare{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line)}.pic{background:var(--panel2);padding:10px}.pic label{display:block;font-size:9px;color:var(--soft);font-weight:800;margin-bottom:5px}
-.pic img{width:100%;aspect-ratio:4/5;object-fit:cover;border-radius:8px;background:#ddd;display:block}.assetbody{padding:14px}.links{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.pic img{width:100%;aspect-ratio:1/1;object-fit:cover;border-radius:8px;background:#ddd;display:block}.assetbody{padding:14px}.links{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
 .links a{font-size:10px;color:var(--gold);font-weight:700}.qa{display:flex;gap:6px;align-items:center;font-size:10px;color:var(--soft);margin-bottom:10px}
 .checks{display:grid;grid-template-columns:1fr 1fr;gap:6px}.check{display:flex;align-items:flex-start;gap:7px;padding:7px 8px;background:var(--panel2);border:1px solid var(--line);border-radius:7px;font-size:10px}
 .check input{margin-top:2px}.reviewfields{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}.reviewfields input,.reviewfields textarea{width:100%;border:1px solid var(--line);border-radius:8px;padding:8px;font-size:11px;background:var(--panel2);color:var(--ink)}
@@ -74,7 +74,7 @@ td{padding:8px 9px;border-bottom:1px solid #eee9e1;vertical-align:middle}tbody t
 <body>
 <div class="top">
   <div class="topin">
-    <div class="brand"><div class="mark">HB</div><div><small>CATALOG CREATIVE · HB_02</small><b>人物優先V3 全件進行</b></div></div>
+    <div class="brand"><div class="mark">HB</div><div><small>CATALOG CREATIVE · HB_02</small><b>人物優先 1:1 全件進行</b></div></div>
     <div class="grow"></div>
     <div class="stamp" id="stamp">読込前<br>—</div>
     <button class="btn" id="downloadBtn" disabled>状態を書き出す</button>
@@ -118,7 +118,7 @@ td{padding:8px 9px;border-bottom:1px solid #eee9e1;vertical-align:middle}tbody t
 
   <section class="view" id="view-review" hidden>
     <div class="panel">
-      <div class="panelhead"><h2>差し替え前の人手チェック</h2><p>元人物画像・1080×1350完成バナー・360×450縮小表示を比較し、unique assetごとに承認します。</p></div>
+      <div class="panelhead"><h2>差し替え前の人手チェック</h2><p>元人物画像・1:1完成バナー・360×360縮小表示を比較し、unique assetごとに承認します。</p></div>
       <div class="panelbody">
         <div class="filters">
           <input id="assetSearch" placeholder="店舗名・サロンID・product ID・asset IDで検索">
@@ -146,7 +146,7 @@ td{padding:8px 9px;border-bottom:1px solid #eee9e1;vertical-align:middle}tbody t
   <section class="view" id="view-performance" hidden>
     <div class="kpis" id="perfKpis"></div>
     <div class="panel">
-      <div class="panelhead"><h2>旧画像 / 人物優先V3の配信結果</h2><p>公開ログを基準に、切替日を除いたMeta完全日だけを画像versionへ結合します。</p></div>
+      <div class="panelhead"><h2>旧画像 / 人物優先1:1版の配信結果</h2><p>公開ログを基準に、切替日を除いたMeta完全日だけを画像versionへ結合します。</p></div>
       <div class="panelbody">
         <div class="perfgrid">
           <div class="method"><b>対象と主指標</b><p>HB_02。CTR / CPMを主指標、商品別Meta ATC（onsite_web_add_to_cart）を従指標とします。</p></div>
@@ -191,11 +191,12 @@ const LABELS={
 };
 const CHECKS=[
   ['source_match','対象サロン／スタッフの人物である'],
+  ['not_treatment_scene','商品・器具・店内・手元だけ／施術中の画像ではない'],
   ['person_unchanged','人物・顔・髪型・髪色が不自然に変わっていない'],
   ['safe_crop','顔・髪・主要スタイルが文字や見切れで損なわれない'],
   ['copy_matches_landing','店舗名・エリア・アクセス・訴求が着地先と一致'],
   ['no_misleading_claim','人物を施術実績だと過度に断定していない'],
-  ['mobile_readable','360×450相当で情報を判読できる'],
+  ['mobile_readable','360×360相当で情報を判読できる'],
   ['no_unwanted_text','求人・価格・他店情報・第三者ロゴが残っていない'],
   ['rollback_identified','現在画像と直前overrideの復元先が明確']
 ];
@@ -263,6 +264,12 @@ function assetReviewStage(a){
   if(decision)return decision;
   return a.qa_status==='pass'?'review_pending':'qa_failed';
 }
+function assetFormat(a){
+  const square=a.design_version==='person_square_editorial_v1';
+  return square
+    ?{name:'人物優先 1:1 エディトリアル',output:'1080×1080',preview:'360×360'}
+    :{name:'人物優先V3',output:'1080×1350',preview:'360×450'};
+}
 function filterAssets(){
   if(!DATA)return;
   const q=$('assetSearch').value.trim().toLowerCase(),status=$('assetReviewFilter').value;
@@ -287,13 +294,13 @@ function renderAssets(){
   const approved=ASSET_FILTERED.filter(a=>assetReviewStage(a)==='approved').length;
   $('assetSummary').innerHTML=`<b>${fmt(ASSET_FILTERED.length)} asset</b><span>· この検索内の承認済み ${fmt(approved)} · 1ページ最大 ${fmt(pageSize)}件</span>`;
   $('assetGrid').innerHTML=assets.map(a=>{
-    const copy=a.copy_payload||{},review=a.latest_review,all=review?.decision==='approved';
+    const copy=a.copy_payload||{},review=a.latest_review,all=review?.decision==='approved',format=assetFormat(a);
     return `<article class="asset" data-asset="${esc(a.asset_id)}" data-manifest="${esc(a.manifest_sha256)}">
       <div class="assethead"><div><div class="ttl">${esc(copy.salon_name||`サロンID ${a.salon_id}`)}</div><div class="sub">${esc(a.asset_id)} · ${fmt((a.product_ids||[]).length)} products</div></div><div class="grow"></div>${badge(review?.decision==='approved'?'approved':a.qa_status==='pass'?'review_pending':'qa_failed')}</div>
-      <div class="compare"><div class="pic"><label>元人物画像</label><img loading="lazy" src="${esc(a.source_image_url)}" alt="元人物画像"></div><div class="pic"><label>人物優先V3 完成バナー</label><img loading="lazy" src="${esc(a.banner_url)}" alt="完成バナー"></div></div>
+      <div class="compare"><div class="pic"><label>元人物画像</label><img loading="lazy" src="${esc(a.source_image_url)}" alt="元人物画像"></div><div class="pic"><label>${esc(format.name)} 完成バナー</label><img loading="lazy" src="${esc(a.banner_url)}" alt="完成バナー"></div></div>
       <div class="assetbody">
-        <div class="qa"><b style="color:var(--green)">自動QA ${esc(a.qa_status.toUpperCase())}</b><span>· 1080×1350 / 360×450 / hash検証済み</span></div>
-        <div class="links"><a href="${esc(a.source_page_url)}" target="_blank" rel="noopener">元ページを確認 ↗</a><a href="${esc(a.banner_url)}" target="_blank" rel="noopener">完成画像を拡大 ↗</a><a href="${esc(a.mobile_preview_url)}" target="_blank" rel="noopener">360×450表示 ↗</a></div>
+        <div class="qa"><b style="color:var(--green)">自動QA ${esc(a.qa_status.toUpperCase())}</b><span>· ${esc(format.output)} / ${esc(format.preview)} / hash検証済み</span></div>
+        <div class="links"><a href="${esc(a.source_page_url)}" target="_blank" rel="noopener">元ページを確認 ↗</a><a href="${esc(a.banner_url)}" target="_blank" rel="noopener">完成画像を拡大 ↗</a><a href="${esc(a.mobile_preview_url)}" target="_blank" rel="noopener">${esc(format.preview)}表示 ↗</a></div>
         <div class="checks">${CHECKS.map(([k,l])=>`<label class="check"><input type="checkbox" data-check="${k}" ${all?'checked':''}><span>${esc(l)}</span></label>`).join('')}</div>
         <div class="reviewfields"><input data-reviewer placeholder="承認者名" value="${esc(review?.reviewer||localStorage.getItem('hb_creative_reviewer')||'')}"><input data-reason placeholder="修正・却下理由（承認時は任意）" value=""><textarea data-note placeholder="補足（修正依頼時は理由を入力）"></textarea></div>
         <div class="reviewactions"><button class="btn" data-decision="changes_requested">修正依頼</button><button class="btn danger" data-decision="rejected">却下</button><button class="btn pri" data-decision="approved">承認</button></div>
