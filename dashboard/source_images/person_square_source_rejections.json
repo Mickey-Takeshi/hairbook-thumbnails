@@ -30,6 +30,31 @@
       "source_type": "hairbook_staff_profile_photo",
       "record_id": "15515",
       "reason": "顧客が施術台に横たわり、スタッフが目元を施術している最中の写真のため、同一店舗のスタッフ単独写真へ統一する。"
+    },
+    {
+      "source_type": "hairbook_salon_style_photo",
+      "record_id": "110138",
+      "reason": "人物がマスクを着用しており顔の大部分が隠れるため、顔が確認できる完成スタイル写真へ差し替える。"
+    },
+    {
+      "source_type": "hairbook_salon_style_photo",
+      "record_id": "179816",
+      "reason": "人物がマスクを着用しており顔の大部分が隠れるため、顔が確認できる完成スタイル写真へ差し替える。"
+    },
+    {
+      "source_type": "hairbook_salon_style_photo",
+      "record_id": "180551",
+      "reason": "人物が黒いマスクを着用しており顔の大部分が隠れるため、顔が確認できる完成スタイル写真へ差し替える。"
+    },
+    {
+      "source_type": "hairbook_salon_style_photo",
+      "record_id": "118918",
+      "reason": "人物の口元がフェイスカバーで隠れているため、顔が確認できる完成スタイル写真へ差し替える。"
+    },
+    {
+      "source_type": "hairbook_stylist_style_photo",
+      "record_id": "170916",
+      "reason": "人物がマスクを着用しており顔の大部分が隠れるため、顔が確認できる完成スタイル写真へ差し替える。"
     }
   ]
 }

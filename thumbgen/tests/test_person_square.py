@@ -13,6 +13,7 @@ if str(THUMBGEN) not in sys.path:
     sys.path.insert(0, str(THUMBGEN))
 
 import build_person_square_catalog as builder
+import apply_person_square_edits as edit_applier
 import creative_rollout
 import person_square
 from build_person_v3_catalog import PageInfo
@@ -71,6 +72,12 @@ class PersonSquareCopyTest(unittest.TestCase):
         self.assertIn(
             "shampoo_or_washbasin_scene",
             builder._treatment_flags(labels),
+        )
+        self.assertIn(
+            "face_mask_or_obstruction",
+            builder._treatment_flags(
+                {"people": 0.9, "mask": 0.02}
+            ),
         )
 
     def test_explicit_eye_and_head_spa_businesses_get_matching_copy(self):
@@ -187,11 +194,11 @@ class PersonSquareCopyTest(unittest.TestCase):
                 },
             )
 
-    def test_access_parser_keeps_zero_minutes_car_and_approximate_walk(self):
+    def test_access_parser_rewrites_zero_minutes_and_keeps_other_modes(self):
         cases = [
             (
                 "北加賀屋駅3番出口0分",
-                [("北加賀屋", "徒歩0分")],
+                [("北加賀屋", "すぐ")],
             ),
             (
                 "名鉄「多治見駅」より車で約5分",
@@ -217,6 +224,349 @@ class PersonSquareCopyTest(unittest.TestCase):
             ),
             ["バス停「泡瀬3丁目」から徒歩4分"],
         )
+
+    def test_general_hair_copy_is_gender_neutral_and_has_no_cta(self):
+        row = {
+            "id": "61_01TEST",
+            "title": "梅田駅 徒歩3分 TEST SALON",
+            "description": "髪質改善と似合わせカラー",
+            "address.region": "大阪府",
+            "address.city": "大阪市",
+            "address.street_address": "北区1-2-3",
+        }
+        info = PageInfo(
+            landing_url="https://hairbook.jp/salons/61/",
+            component="salons/show",
+            version="",
+            salon_id="61",
+            stylist_id="",
+            salon_name="TEST SALON",
+            location="梅田駅 徒歩3分",
+            region="大阪府",
+            city="大阪市",
+            nearest_stations=["梅田"],
+            source_text="ヘアサロン",
+            staff_name="",
+            candidates=[],
+        )
+        copy, _ = builder._copy_payload(row, info)
+        headline = " ".join(copy["headline"])
+        self.assertEqual(copy["industry"], "hair")
+        self.assertEqual(copy["cta"], "")
+        for phrase in ("美髪", "肌まできれい", "今の私", "大人女性"):
+            self.assertNotIn(phrase, headline)
+
+    def test_product_description_overrides_multi_service_salon_name(self):
+        row = {
+            "id": "43745_01TEST",
+            "title": "hair.nail.eye beauty salon",
+            "description": "全店舗 縮毛矯正20%オフ",
+            "address.region": "福岡県",
+            "address.city": "北九州市",
+            "address.street_address": "1-2-3",
+        }
+        info = PageInfo(
+            landing_url="https://hairbook.jp/salons/43745/",
+            component="salons/show",
+            version="",
+            salon_id="43745",
+            stylist_id="",
+            salon_name="hair.nail.eye beauty&life",
+            location="黒崎駅 徒歩5分",
+            region="福岡県",
+            city="北九州市",
+            nearest_stations=["黒崎"],
+            source_text="hair nail eye",
+            staff_name="",
+            candidates=[],
+        )
+        copy, _ = builder._copy_payload(row, info)
+        self.assertEqual(copy["industry"], "hair")
+
+    def test_general_salon_mens_mention_and_unavailable_menu_stay_hair(self):
+        base = {
+            "id": "44814_18078_01TEST",
+            "title": "心斎橋駅 徒歩2分 CYM ITSUKI",
+            "address.region": "大阪府",
+            "address.city": "大阪市",
+            "address.street_address": "中央区1-2-3",
+        }
+        info = PageInfo(
+            landing_url="https://hairbook.jp/staffs/18078/",
+            component="staffs/show",
+            version="",
+            salon_id="44814",
+            stylist_id="18078",
+            salon_name="CYM【シィム】",
+            location="心斎橋駅 徒歩2分",
+            region="大阪府",
+            city="大阪市",
+            nearest_stations=["心斎橋"],
+            source_text="ハイトーンとエクステが得意",
+            staff_name="ITSUKI",
+            candidates=[],
+        )
+        rows = [
+            {
+                **base,
+                "description": (
+                    "ブリーチなしダブルカラーが得意。"
+                    "メンズカット、予約不可"
+                ),
+            },
+            {
+                **base,
+                "description": (
+                    "似合わせカットとカラー。"
+                    "メンズカットもご相談ください"
+                ),
+            },
+        ]
+        for row in rows:
+            with self.subTest(row=row["description"]):
+                copy, _ = builder._copy_payload(row, info)
+                self.assertEqual(copy["industry"], "hair")
+
+    def test_dedicated_mens_business_keeps_mens_copy(self):
+        row = {
+            "id": "61_01TEST",
+            "title": "MEN'S BARBER SHOP NEO",
+            "description": "カットとパーマ",
+            "address.region": "東京都",
+            "address.city": "渋谷区",
+            "address.street_address": "1-2-3",
+        }
+        info = PageInfo(
+            landing_url="https://hairbook.jp/salons/61/",
+            component="salons/show",
+            version="",
+            salon_id="61",
+            stylist_id="",
+            salon_name="MEN'S BARBER SHOP NEO",
+            location="渋谷駅 徒歩3分",
+            region="東京都",
+            city="渋谷区",
+            nearest_stations=["渋谷"],
+            source_text="メンズ専門",
+            staff_name="",
+            candidates=[],
+        )
+        copy, _ = builder._copy_payload(row, info)
+        self.assertEqual(copy["industry"], "hair_mens")
+        self.assertIn("メンズ", " ".join(copy["headline"]))
+
+    def test_ocr_detects_baked_text(self):
+        analysis = {
+            "texts": [
+                {
+                    "text": "限定キャンペーン",
+                    "confidence": 0.92,
+                    "x": 0.05,
+                    "y": 0.04,
+                    "width": 0.52,
+                    "height": 0.12,
+                }
+            ]
+        }
+        result = builder._source_text_analysis(analysis)
+        self.assertIn("baked_text_detected", result["text_flags"])
+
+    def test_nail_selection_allows_finished_nail_closeup_only(self):
+        def item(metadata: str):
+            candidate = builder.SourceCandidate(
+                source_type="hairbook_salon_style_photo",
+                record_id="159062",
+                page_url="https://hairbook.jp/salons/43219/",
+                image_url="https://hairbook.jp/example.jpg",
+                metadata_text=metadata,
+            )
+            return {
+                "candidate": candidate,
+                "prepared": {
+                    "candidate": candidate,
+                    "path": Path("/tmp/nail.jpg"),
+                    "sha256": metadata,
+                    "width": 1080,
+                    "height": 1440,
+                    "final_url": candidate.image_url,
+                },
+                "vision": {
+                    "status": "rejected",
+                    "score": 0.1,
+                    "person_score": 0.0,
+                    "face_score": 0.0,
+                    "human_score": 0.0,
+                    "treatment_risk": 0.02,
+                    "treatment_flags": [],
+                    "non_person_risk": 0.30,
+                    "text_boxes": [
+                        {
+                            "x": 0.04,
+                            "y": 0.82,
+                            "width": 0.50,
+                            "height": 0.08,
+                        }
+                    ],
+                },
+            }
+
+        selected = builder._selected_pool(
+            [
+                item("深爪改善 ジェルネイル"),
+                item("縮毛矯正 艶カラー"),
+            ],
+            "nail",
+        )
+        self.assertEqual(len(selected), 1)
+        self.assertTrue(
+            selected[0]["vision"]["nail_service_approved"]
+        )
+        self.assertTrue(
+            selected[0]["vision"]["text_after_crop_clear"]
+        )
+        mixed_selected = builder._selected_pool(
+            [item("深爪改善 ジェルネイル")],
+            "eye_nail",
+        )
+        self.assertEqual(len(mixed_selected), 1)
+        self.assertTrue(
+            mixed_selected[0]["vision"]["nail_service_approved"]
+        )
+
+    def test_non_hair_service_rejects_body_part_only_fallback(self):
+        candidate = builder.SourceCandidate(
+            source_type="hairbook_salon_style_photo",
+            record_id="159062",
+            page_url="https://hairbook.jp/salons/43219/",
+            image_url="https://hairbook.jp/example.jpg",
+            metadata_text="小顔ケア",
+        )
+        selected = builder._selected_pool(
+            [
+                {
+                    "candidate": candidate,
+                    "prepared": {
+                        "candidate": candidate,
+                        "path": Path("/tmp/body-part.jpg"),
+                        "sha256": "test",
+                        "width": 1080,
+                        "height": 1440,
+                        "final_url": candidate.image_url,
+                    },
+                    "vision": {
+                        "status": "approved",
+                        "score": 4.0,
+                        "person_score": 0.67,
+                        "face_score": 0.0,
+                        "human_score": 0.62,
+                        "treatment_risk": 0.01,
+                        "treatment_flags": [],
+                        "non_person_risk": 0.10,
+                        "text_flags": [],
+                    },
+                }
+            ],
+            "esthetic",
+        )
+        self.assertEqual(selected, [])
+
+    def test_tiny_mirror_face_is_only_a_finished_back_style_fallback(self):
+        candidate = builder.SourceCandidate(
+            source_type="hairbook_salon_style_photo",
+            record_id="127354",
+            page_url="https://hairbook.jp/salons/280/",
+            image_url="https://hairbook.jp/photo/Style/127354/",
+            metadata_text="髪質改善ロング",
+        )
+        selected = builder._selected_pool(
+            [
+                {
+                    "candidate": candidate,
+                    "prepared": {
+                        "candidate": candidate,
+                        "path": Path("/tmp/back-hair.jpg"),
+                        "sha256": "test",
+                        "width": 375,
+                        "height": 500,
+                        "final_url": candidate.image_url,
+                    },
+                    "vision": {
+                        "status": "approved",
+                        "score": 8.0,
+                        "person_score": 0.90,
+                        "face_score": 0.80,
+                        "human_score": 0.90,
+                        "face_box": {
+                            "x": 0.40,
+                            "y": 0.91,
+                            "width": 0.06,
+                            "height": 0.05,
+                        },
+                        "treatment_risk": 0.01,
+                        "treatment_flags": [],
+                        "non_person_risk": 0.01,
+                        "text_flags": [],
+                    },
+                }
+            ],
+            "hair",
+        )
+        self.assertEqual(len(selected), 1)
+        self.assertTrue(
+            selected[0]["vision"][
+                "hair_finished_style_back_view_approved"
+            ]
+        )
+
+    def test_display_salon_name_drops_search_menu_suffixes(self):
+        self.assertEqual(
+            builder._display_salon_name(
+                "eyelash Cocoa byTJ天気予報 豊田長興寺店/"
+                "まつ毛パーマ/マツエク/美眉毛/アイブロウ"
+            ),
+            "eyelash Cocoa byTJ天気予報 豊田長興寺店",
+        )
+        self.assertEqual(
+            builder._display_salon_name(
+                "大人の美髪髪質改善サロン the laughter /"
+                "デザイン&カラー特化型サロン The bleach 新下関"
+            ),
+            "the laughter / The bleach 新下関",
+        )
+        self.assertEqual(
+            builder._display_salon_name(
+                "眉毛/アイブロウサロン "
+                "LUMICIA.-TOKYO-大阪梅田店【ルミシアトウキョウ】"
+            ),
+            "LUMICIA.-TOKYO-大阪梅田店",
+        )
+
+    def test_top_portrait_face_is_kept_below_header_safe_zone(self):
+        with tempfile.TemporaryDirectory() as raw:
+            source = Path(raw) / "portrait.jpg"
+            Image.new("RGB", (853, 1280), "#cab8aa").save(
+                source,
+                "JPEG",
+            )
+            result = builder._layout_analysis(
+                source,
+                {
+                    "face_box": {
+                        "x": 0.36,
+                        "y": 0.74,
+                        "width": 0.23,
+                        "height": 0.15,
+                    },
+                    "person_box": None,
+                },
+                prefer_wide_text=False,
+            )
+            box = result["subject_box_after_crop"]
+            self.assertIsNotNone(box)
+            self.assertGreaterEqual(
+                box["y"] + box["height"] / 2,
+                0.219,
+            )
 
 
 class PersonSquareRendererTest(unittest.TestCase):
@@ -270,7 +620,7 @@ class PersonSquareRendererTest(unittest.TestCase):
                                 "あなたらしさを引き出す",
                                 "似合わせヘア",
                             ],
-                            "cta": "サロンを見る",
+                            "cta": "",
                         },
                     }
                 )
@@ -311,6 +661,70 @@ class PersonSquareRendererTest(unittest.TestCase):
             )
             self.assertEqual(qa["schema_version"], creative_rollout.SQUARE_QA_SCHEMA)
             self.assertEqual(qa["overall_status"], "pass")
+
+
+class PersonSquareDashboardEditTest(unittest.TestCase):
+    def test_structured_edit_switches_an_approved_source_and_copy(self):
+        asset = {
+            "asset_id": "asset-1",
+            "layout": "copy_left",
+            "layout_reason": "auto",
+            "theme": "neutral_ink",
+            "source": {
+                "path": "sources/a.jpg",
+                "source_type": "hairbook_salon_style_photo",
+                "record_id": "a",
+                "subject_scope": "salon",
+                "selection_scope": "landing_page",
+            },
+            "image": {"focal_x": 0.5, "focal_y": 0.5},
+            "copy": {
+                "industry": "hair",
+                "area": "大阪・梅田",
+                "salon_name": "旧店名",
+                "access": ["梅田駅 徒歩3分"],
+                "headline": ["自分らしさが見つかる", "似合わせヘア"],
+                "cta": "",
+            },
+            "source_options": [
+                {
+                    "option_id": "hairbook_salon_style_photo:b",
+                    "source": {
+                        "path": "sources/b.jpg",
+                        "source_type": "hairbook_salon_style_photo",
+                        "record_id": "b",
+                    },
+                    "image": {"focal_x": 0.4, "focal_y": 0.4},
+                    "layout": "copy_right",
+                    "layout_reason": "option",
+                    "theme": "warm_clay",
+                }
+            ],
+        }
+        changed = edit_applier._apply_request(
+            asset,
+            {
+                "source_option_id": (
+                    "hairbook_salon_style_photo:b"
+                ),
+                "industry": "hair_mens",
+                "salon_name": "新店名",
+                "headline": [
+                    "清潔感を、デザインする",
+                    "扱いやすいメンズヘア",
+                ],
+                "layout": "top_editorial",
+                "issue_types": ["gender_copy"],
+                "cta_visible": False,
+            },
+        )
+        self.assertEqual(asset["source"]["record_id"], "b")
+        self.assertEqual(asset["source"]["subject_scope"], "salon")
+        self.assertEqual(asset["copy"]["industry"], "hair_mens")
+        self.assertEqual(asset["copy"]["salon_name"], "新店名")
+        self.assertEqual(asset["copy"]["cta"], "")
+        self.assertEqual(asset["layout"], "top_editorial")
+        self.assertIn("source", changed)
 
 
 if __name__ == "__main__":

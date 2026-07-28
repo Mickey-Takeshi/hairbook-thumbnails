@@ -13,6 +13,7 @@ from __future__ import annotations
 import argparse
 import html
 import json
+import re
 import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
@@ -45,6 +46,20 @@ MANUAL_CHECKS = [
     ("no_misleading_claim", "人物を施術実績だと過度に断定する表現がない"),
     ("mobile_readable", "360px幅の実表示で店名・アクセス・主訴求・CTAを判読できる"),
     ("no_unwanted_text", "求人・価格・他店舗情報・第三者ロゴが残っていない"),
+    ("rollback_identified", "現在画像と直前overrideの復元先が確認できる"),
+]
+
+SQUARE_MANUAL_CHECKS = [
+    ("source_match", "対象サロンの商品・人物画像である"),
+    ("not_treatment_scene", "施術中、器具・薬剤、店内・看板だけの画像ではない"),
+    ("person_unchanged", "人物・顔・髪型・髪色が不自然に変わっていない"),
+    ("safe_crop", "人物またはネイルの主役が文字や見切れで損なわれない"),
+    ("copy_matches_landing", "業種・店舗名・エリア・アクセス・訴求が着地先と一致する"),
+    ("gender_copy_match", "人物の見え方に対して訴求が性別を限定しすぎていない"),
+    ("area_name_glanceable", "一覧表示でもエリアと店舗名を一目で判読できる"),
+    ("no_unwanted_text", "元写真の文字・求人・価格・ロゴが残っていない"),
+    ("mask_or_service_visible", "マスクで顔が隠れず、ネイル商材では爪が確認できる"),
+    ("cta_removed", "CTAボタンが表示されていない"),
     ("rollback_identified", "現在画像と直前overrideの復元先が確認できる"),
 ]
 
@@ -95,6 +110,7 @@ def _creative_spec(manifest: dict[str, Any]) -> dict[str, Any]:
                 person_square.MOBILE_H,
             ),
             "review_title": "人物優先・正方形版",
+            "manual_checks": SQUARE_MANUAL_CHECKS,
         }
     return {
         "design_version": person_v3.DESIGN_VERSION,
@@ -105,6 +121,7 @@ def _creative_spec(manifest: dict[str, Any]) -> dict[str, Any]:
         "output_size": (person_v3.W, person_v3.H),
         "preview_size": (person_v3.MOBILE_W, person_v3.MOBILE_H),
         "review_title": "人物画像版V3",
+        "manual_checks": MANUAL_CHECKS,
     }
 
 
@@ -164,7 +181,9 @@ def run_qa(
                     "asset_id": asset_id,
                     "status": "fail",
                     "checks": checks,
-                    "manual_checks_required": [key for key, _ in MANUAL_CHECKS],
+                    "manual_checks_required": [
+                        key for key, _ in spec["manual_checks"]
+                    ],
                 }
             )
             continue
@@ -324,11 +343,21 @@ def run_qa(
 
         if spec["design_version"] == person_square.DESIGN_VERSION:
             source_vision = (asset.get("source") or {}).get("vision") or {}
+            copy_payload = asset.get("copy") or {}
+            is_nail_service = (
+                copy_payload.get("industry") in {"nail", "eye_nail"}
+                and source_vision.get("nail_service_approved") is True
+            )
             _check(
                 checks,
                 "source_person_score",
-                float(source_vision.get("person_score") or 0) >= 0.30,
-                f"person_score={source_vision.get('person_score')}",
+                is_nail_service
+                or float(source_vision.get("person_score") or 0) >= 0.30,
+                (
+                    "nail service-result exception"
+                    if is_nail_service
+                    else f"person_score={source_vision.get('person_score')}"
+                ),
             )
             _check(
                 checks,
@@ -340,7 +369,6 @@ def run_qa(
                     f"flags={source_vision.get('treatment_flags') or []}"
                 ),
             )
-            copy_payload = asset.get("copy") or {}
             copy_text = json.dumps(copy_payload, ensure_ascii=False)
             _check(
                 checks,
@@ -359,6 +387,77 @@ def run_qa(
                 ),
                 " / ".join(str(line) for line in access_lines),
             )
+            _check(
+                checks,
+                "access_no_zero_minutes",
+                not any(
+                    re.search(
+                        r"徒歩\s*0\s*(?:分|秒)",
+                        str(line),
+                    )
+                    for line in access_lines
+                ),
+                " / ".join(str(line) for line in access_lines),
+            )
+            _check(
+                checks,
+                "source_no_baked_text",
+                (
+                    source_vision.get("text_after_crop_clear") is True
+                    if is_nail_service
+                    else not source_vision.get("text_flags")
+                ),
+                (
+                    "nail crop is clear"
+                    if is_nail_service
+                    else (
+                        "flags="
+                        f"{source_vision.get('text_flags') or []}; "
+                        "recognized="
+                        f"{source_vision.get('recognized_text') or []}"
+                    )
+                ),
+            )
+            _check(
+                checks,
+                "cta_removed",
+                not str(copy_payload.get("cta") or "").strip(),
+                "CTA is omitted",
+            )
+            headline_text = " ".join(
+                str(line)
+                for line in copy_payload.get("headline") or []
+            )
+            gendered_phrases = (
+                "美髪",
+                "肌まできれい",
+                "今の私",
+                "大人女性",
+                "女性らし",
+            )
+            _check(
+                checks,
+                "general_hair_gender_neutral",
+                copy_payload.get("industry") != "hair"
+                or not any(
+                    phrase in headline_text
+                    for phrase in gendered_phrases
+                ),
+                headline_text,
+            )
+            header_metrics = record.get("header_metrics") or {}
+            _check(
+                checks,
+                "area_and_salon_legible",
+                int(header_metrics.get("area_font_size") or 0) >= 24
+                and int(
+                    header_metrics.get("salon_name_font_size") or 0
+                )
+                >= 32
+                and int(header_metrics.get("salon_name_lines") or 0)
+                in {1, 2},
+                json.dumps(header_metrics, ensure_ascii=False),
+            )
 
         status = (
             "fail"
@@ -373,7 +472,9 @@ def run_qa(
                 "salon_id": str(asset.get("salon_id") or ""),
                 "status": status,
                 "checks": checks,
-                "manual_checks_required": [key for key, _ in MANUAL_CHECKS],
+                "manual_checks_required": [
+                    key for key, _ in spec["manual_checks"]
+                ],
             }
         )
 
@@ -449,7 +550,7 @@ def _review_html(
               <span>{html.escape(label)}</span>
             </label>
             """
-            for key, label in MANUAL_CHECKS
+            for key, label in spec["manual_checks"]
         )
         copy = asset["copy"]
         cards.append(

@@ -94,6 +94,8 @@ class SourceCandidate:
     record_id: str
     page_url: str
     image_url: str
+    metadata_text: str = ""
+    local_path: str = ""
 
 
 @dataclass
@@ -273,6 +275,12 @@ def _candidate_list(
                 record_id=style_id,
                 page_url=page_url,
                 image_url=f"https://hairbook.jp/photo/Style/{style_id}/",
+                metadata_text=str(
+                    style.get("name")
+                    or style.get("title")
+                    or style.get("description")
+                    or ""
+                ).strip(),
             )
         )
     return candidates
@@ -300,6 +308,12 @@ def _legacy_style_candidates(
                 record_id=style_id,
                 page_url=page_url or image_url,
                 image_url=image_url,
+                metadata_text=str(
+                    style.get("name")
+                    or style.get("title")
+                    or style.get("description")
+                    or ""
+                ).strip(),
             )
         )
     return candidates
@@ -336,6 +350,17 @@ def _staff_profile_candidates(
                 image_url=(
                     "https://hairbook.jp/thumbnail/"
                     f"StaffProfile/{profile_id}/"
+                ),
+                metadata_text=" ".join(
+                    str(value).strip()
+                    for value in (
+                        profile.get("name"),
+                        profile.get("position"),
+                        profile.get("jobTitle"),
+                        profile.get("introduction"),
+                        profile.get("profileIntroduction"),
+                    )
+                    if str(value or "").strip()
                 ),
             )
         )

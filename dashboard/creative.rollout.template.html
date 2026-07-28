@@ -59,6 +59,9 @@ td{padding:8px 9px;border-bottom:1px solid #eee9e1;vertical-align:middle}tbody t
 .checks{display:grid;grid-template-columns:1fr 1fr;gap:6px}.check{display:flex;align-items:flex-start;gap:7px;padding:7px 8px;background:var(--panel2);border:1px solid var(--line);border-radius:7px;font-size:10px}
 .check input{margin-top:2px}.reviewfields{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}.reviewfields input,.reviewfields textarea{width:100%;border:1px solid var(--line);border-radius:8px;padding:8px;font-size:11px;background:var(--panel2);color:var(--ink)}
 .reviewfields textarea{grid-column:1/-1;min-height:58px;resize:vertical}.reviewactions{display:flex;gap:7px;margin-top:9px}.reviewmeta{font-size:9px;color:var(--faint);margin-top:8px}
+.editor{margin-top:11px;border:1px solid var(--line);border-radius:10px;background:#fcfaf6;overflow:hidden}.editor summary{cursor:pointer;padding:10px 11px;font-size:11px;font-weight:800;color:var(--gold);list-style:none}.editor summary::-webkit-details-marker{display:none}.editor summary:after{content:"＋";float:right;color:var(--soft)}.editor[open] summary:after{content:"−"}
+.editorbody{padding:0 11px 12px;border-top:1px solid var(--line)}.editorhelp{font-size:9px;color:var(--soft);margin:9px 0}.sourceoptions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.sourceoption{display:block;border:1px solid var(--line);border-radius:9px;padding:6px;background:white;cursor:pointer}.sourceoption:has(input:checked){border:2px solid var(--gold);padding:5px;background:#fff9eb}.sourceoption input{position:absolute;opacity:0;pointer-events:none}.sourceoption img{width:100%;aspect-ratio:1/1;object-fit:cover;border-radius:6px;display:block;background:#ddd}.sourceoption span{display:block;font-size:9px;font-weight:800;margin-top:5px}.sourceoption small{display:block;font-size:8px;color:var(--faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.editgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}.editfield{font-size:9px;color:var(--soft);font-weight:700}.editfield.full{grid-column:1/-1}.editfield input,.editfield select,.editfield textarea{display:block;width:100%;margin-top:4px;border:1px solid var(--line);border-radius:7px;background:white;color:var(--ink);padding:7px;font-size:10px}.editfield textarea{min-height:50px;resize:vertical}.issues{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:10px}.issue{display:flex;gap:5px;align-items:flex-start;font-size:9px;padding:6px;border:1px solid var(--line);border-radius:7px;background:white}.editfoot{display:flex;align-items:center;gap:7px;margin-top:9px}.editfoot .locked{font-size:9px;color:var(--green);font-weight:800;margin-left:auto}
 .gategrid{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(300px,.7fr);gap:14px}.gate{display:flex;align-items:flex-start;gap:10px;padding:11px 0;border-bottom:1px solid var(--line)}
 .gate:last-child{border:0}.gicon{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;background:#eee;color:var(--soft);font-weight:900}.gate.pass .gicon{background:#e7f1e9;color:var(--green)}.gate.fail .gicon{background:#f8e8e5;color:var(--red)}
 .gate b{font-size:11px}.gate p{margin:2px 0 0;font-size:10px;color:var(--soft)}
@@ -68,7 +71,7 @@ td{padding:8px 9px;border-bottom:1px solid #eee9e1;vertical-align:middle}tbody t
 .perfgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.method{padding:13px;border:1px solid var(--line);border-radius:10px;background:var(--panel2)}.method b{font-size:11px}.method p{font-size:10px;color:var(--soft);margin:4px 0 0}
 .foot{padding:10px 0 30px;color:var(--faint);font-size:9px;font-family:var(--mono)}
 @media(max-width:1050px){.kpis{grid-template-columns:repeat(3,1fr)}.gategrid{grid-template-columns:1fr}}
-@media(max-width:680px){.topin{padding:10px 12px}.brand{min-width:0}.brand b{font-size:12px}.stamp{display:none}.tabs,.wrap{padding-left:12px;padding-right:12px}.kpis{grid-template-columns:repeat(2,1fr)}.assetgrid{grid-template-columns:1fr}.checks{grid-template-columns:1fr}.reviewfields{grid-template-columns:1fr}.reviewfields textarea{grid-column:auto}.perfgrid{grid-template-columns:1fr}}
+@media(max-width:680px){.topin{padding:10px 12px}.brand{min-width:0}.brand b{font-size:12px}.stamp{display:none}.tabs,.wrap{padding-left:12px;padding-right:12px}.kpis{grid-template-columns:repeat(2,1fr)}.assetgrid{grid-template-columns:1fr}.checks,.issues,.editgrid{grid-template-columns:1fr}.editfield.full{grid-column:auto}.reviewfields{grid-template-columns:1fr}.reviewfields textarea{grid-column:auto}.perfgrid{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -130,6 +133,18 @@ td{padding:8px 9px;border-bottom:1px solid #eee9e1;vertical-align:middle}tbody t
             <option value="rejected">却下</option>
             <option value="qa_failed">QA不合格</option>
           </select>
+          <select id="assetIssueFilter">
+            <option value="">指摘: すべて</option>
+            <option value="treatment_scene">施術中</option>
+            <option value="baked_text">写真の文字焼き込み</option>
+            <option value="industry_mismatch">業種不一致</option>
+            <option value="access_zero">徒歩0分</option>
+            <option value="gender_copy">性別と訴求</option>
+            <option value="mask">マスク</option>
+            <option value="nail_not_visible">爪が見えない</option>
+            <option value="name_area_legibility">店名・エリア視認性</option>
+            <option value="other">その他</option>
+          </select>
           <select id="assetPageSize">
             <option value="12">12件表示</option>
             <option value="20" selected>20件表示</option>
@@ -190,15 +205,32 @@ const LABELS={
   published:'公開済み',rolled_back:'復元済み',hold:'保留',excluded_out_of_stock:'在庫外'
 };
 const CHECKS=[
-  ['source_match','対象サロン／スタッフの人物である'],
-  ['not_treatment_scene','商品・器具・店内・手元だけ／施術中の画像ではない'],
+  ['source_match','対象サロンの商品・人物画像である'],
+  ['not_treatment_scene','施術中、器具・薬剤、店内・看板だけの画像ではない'],
   ['person_unchanged','人物・顔・髪型・髪色が不自然に変わっていない'],
-  ['safe_crop','顔・髪・主要スタイルが文字や見切れで損なわれない'],
-  ['copy_matches_landing','店舗名・エリア・アクセス・訴求が着地先と一致'],
-  ['no_misleading_claim','人物を施術実績だと過度に断定していない'],
-  ['mobile_readable','360×360相当で情報を判読できる'],
-  ['no_unwanted_text','求人・価格・他店情報・第三者ロゴが残っていない'],
+  ['safe_crop','人物またはネイルの主役が文字や見切れで損なわれない'],
+  ['copy_matches_landing','業種・店舗名・エリア・アクセス・訴求が着地先と一致'],
+  ['gender_copy_match','人物の見え方に対して訴求が性別を限定しすぎていない'],
+  ['area_name_glanceable','一覧表示でもエリアと店舗名を一目で判読できる'],
+  ['no_unwanted_text','元写真の文字・求人・価格・ロゴが残っていない'],
+  ['mask_or_service_visible','マスクで顔が隠れず、ネイル商材では爪が確認できる'],
+  ['cta_removed','CTAボタンが表示されていない'],
   ['rollback_identified','現在画像と直前overrideの復元先が明確']
+];
+const INDUSTRIES=[
+  ['hair','ヘア（性別中立）'],['hair_mens','メンズヘア'],['nail','ネイル'],
+  ['eye','アイ'],['eye_nail','アイ＆ネイル'],['head_spa','ヘッドスパ'],['esthetic','エステ']
+];
+const LAYOUT_OPTIONS=[
+  ['copy_left','文字：左'],['copy_right','文字：右'],
+  ['bottom_editorial','文字：下'],['top_editorial','文字：上']
+];
+const ISSUE_OPTIONS=[
+  ['treatment_scene','施術中'],['baked_text','写真の文字焼き込み'],
+  ['industry_mismatch','業種不一致'],['access_zero','徒歩0分'],
+  ['gender_copy','性別と訴求の不一致'],['mask','マスクで顔が隠れる'],
+  ['nail_not_visible','ネイルで爪が見えない'],['name_area_legibility','店名・エリアが読みにくい'],
+  ['other','その他']
 ];
 const STAGES=['source_pending','source_selected','rendered','qa_failed','review_pending','review_rejected','approved','publish_ready','published','rolled_back','hold'];
 let DATA=null,FILTERED=[],PAGE=0,ASSET_FILTERED=[],ASSET_PAGE=0;const PAGE_SIZE=50;
@@ -272,7 +304,7 @@ function assetFormat(a){
 }
 function filterAssets(){
   if(!DATA)return;
-  const q=$('assetSearch').value.trim().toLowerCase(),status=$('assetReviewFilter').value;
+  const q=$('assetSearch').value.trim().toLowerCase(),status=$('assetReviewFilter').value,issue=$('assetIssueFilter').value;
   ASSET_FILTERED=(DATA.assets||[])
     .filter(a=>(a.product_ids||[]).length>0)
     .filter(a=>!q||[
@@ -280,6 +312,7 @@ function filterAssets(){
       a.copy_payload?.area,...(a.product_ids||[])
     ].some(v=>String(v||'').toLowerCase().includes(q)))
     .filter(a=>!status||assetReviewStage(a)===status)
+    .filter(a=>!issue||(a.latest_review?.checklist?.edit_request?.issue_types||[]).includes(issue))
     .sort((a,b)=>{
       const rank={review_pending:0,changes_requested:1,rejected:2,qa_failed:3,approved:4};
       return (rank[assetReviewStage(a)]??9)-(rank[assetReviewStage(b)]??9)
@@ -294,32 +327,104 @@ function renderAssets(){
   const approved=ASSET_FILTERED.filter(a=>assetReviewStage(a)==='approved').length;
   $('assetSummary').innerHTML=`<b>${fmt(ASSET_FILTERED.length)} asset</b><span>· この検索内の承認済み ${fmt(approved)} · 1ページ最大 ${fmt(pageSize)}件</span>`;
   $('assetGrid').innerHTML=assets.map(a=>{
-    const copy=a.copy_payload||{},review=a.latest_review,all=review?.decision==='approved',format=assetFormat(a);
+    const copy=a.copy_payload||{},review=a.latest_review,format=assetFormat(a),saved=review?.checklist?.edit_request||{};
+    const qa=a.qa_payload||{},currentSource=qa.current_source_option_id||'',sourceOptions=(qa.source_options||[]).length?qa.source_options:[{
+      option_id:currentSource||'current',selected:true,recommended:true,source_image_url:a.source_image_url,
+      source_type:a.source_type||'current',record_id:'',person_score:0,treatment_risk:0
+    }];
+    const requestedSource=saved.source_option_id||currentSource||sourceOptions.find(x=>x.selected)?.option_id||sourceOptions[0]?.option_id||'';
+    const editValue=(key,fallback)=>saved[key]??fallback;
+    const access=editValue('access',copy.access||[]),headline=editValue('headline',copy.headline||[]);
+    const checks=CHECKS.map(([k,l])=>`<label class="check"><input type="checkbox" data-check="${k}" ${review?.checklist?.[k]===true?'checked':''}><span>${esc(l)}</span></label>`).join('');
+    const editor=`<details class="editor" ${review?.decision==='changes_requested'?'open':''}>
+      <summary>このバナーだけ個別に変更</summary>
+      <div class="editorbody">
+        <p class="editorhelp">素材候補、業種、文字、配置をこのassetだけ変更できます。保存後は再生成・自動QA・再承認が必要です。</p>
+        <div class="sourceoptions">${sourceOptions.map((o,i)=>`<label class="sourceoption">
+          <input type="radio" name="source-${esc(a.asset_id)}" data-source-option value="${esc(o.option_id)}" ${o.option_id===requestedSource?'checked':''}>
+          <img loading="lazy" src="${esc(o.source_image_url)}" alt="素材候補${i+1}">
+          <span>素材候補 ${i+1}${o.recommended?' · 推奨':''}</span>
+          <small>${esc(o.source_type||'素材')} · person ${Number(o.person_score||0).toFixed(2)} · treatment ${Number(o.treatment_risk||0).toFixed(2)}</small>
+        </label>`).join('')}</div>
+        <div class="editgrid">
+          <label class="editfield">業種<select data-edit-industry>${INDUSTRIES.map(([v,l])=>`<option value="${v}" ${v===editValue('industry',copy.industry)?'selected':''}>${esc(l)}</option>`).join('')}</select></label>
+          <label class="editfield">文字配置<select data-edit-layout>${LAYOUT_OPTIONS.map(([v,l])=>`<option value="${v}" ${v===editValue('layout',a.layout)?'selected':''}>${esc(l)}</option>`).join('')}</select></label>
+          <label class="editfield">エリア<input data-edit-area value="${esc(editValue('area',copy.area||''))}"></label>
+          <label class="editfield">店舗名<input data-edit-salon value="${esc(editValue('salon_name',copy.salon_name||''))}"></label>
+          <label class="editfield full">アクセス（1行につき1項目・最大2行）<textarea data-edit-access>${esc((access||[]).join('\n'))}</textarea></label>
+          <label class="editfield full">訴求（1行につき1項目・最大2行）<textarea data-edit-headline>${esc((headline||[]).join('\n'))}</textarea></label>
+        </div>
+        <div class="issues">${ISSUE_OPTIONS.map(([v,l])=>`<label class="issue"><input type="checkbox" data-issue value="${v}" ${(saved.issue_types||[]).includes(v)?'checked':''}><span>${esc(l)}</span></label>`).join('')}</div>
+        <label class="editfield full" style="display:block;margin-top:9px">制作担当への補足<textarea data-edit-note placeholder="例：顔の右側を空け、店名は2行以内">${esc(saved.note||'')}</textarea></label>
+        <div class="editfoot"><button class="btn" type="button" data-reset-edit>未保存の変更を元に戻す</button><span class="locked">CTAは常に非表示</span></div>
+      </div>
+    </details>`;
     return `<article class="asset" data-asset="${esc(a.asset_id)}" data-manifest="${esc(a.manifest_sha256)}">
       <div class="assethead"><div><div class="ttl">${esc(copy.salon_name||`サロンID ${a.salon_id}`)}</div><div class="sub">${esc(a.asset_id)} · ${fmt((a.product_ids||[]).length)} products</div></div><div class="grow"></div>${badge(review?.decision==='approved'?'approved':a.qa_status==='pass'?'review_pending':'qa_failed')}</div>
-      <div class="compare"><div class="pic"><label>元人物画像</label><img loading="lazy" src="${esc(a.source_image_url)}" alt="元人物画像"></div><div class="pic"><label>${esc(format.name)} 完成バナー</label><img loading="lazy" src="${esc(a.banner_url)}" alt="完成バナー"></div></div>
+      <div class="compare"><div class="pic"><label>現在の元素材</label><img loading="lazy" src="${esc(a.source_image_url)}" alt="現在の元素材"></div><div class="pic"><label>${esc(format.name)} 完成バナー</label><img loading="lazy" src="${esc(a.banner_url)}" alt="完成バナー"></div></div>
       <div class="assetbody">
         <div class="qa"><b style="color:var(--green)">自動QA ${esc(a.qa_status.toUpperCase())}</b><span>· ${esc(format.output)} / ${esc(format.preview)} / hash検証済み</span></div>
         <div class="links"><a href="${esc(a.source_page_url)}" target="_blank" rel="noopener">元ページを確認 ↗</a><a href="${esc(a.banner_url)}" target="_blank" rel="noopener">完成画像を拡大 ↗</a><a href="${esc(a.mobile_preview_url)}" target="_blank" rel="noopener">${esc(format.preview)}表示 ↗</a></div>
-        <div class="checks">${CHECKS.map(([k,l])=>`<label class="check"><input type="checkbox" data-check="${k}" ${all?'checked':''}><span>${esc(l)}</span></label>`).join('')}</div>
+        <div class="checks">${checks}</div>
+        ${editor}
         <div class="reviewfields"><input data-reviewer placeholder="承認者名" value="${esc(review?.reviewer||localStorage.getItem('hb_creative_reviewer')||'')}"><input data-reason placeholder="修正・却下理由（承認時は任意）" value=""><textarea data-note placeholder="補足（修正依頼時は理由を入力）"></textarea></div>
-        <div class="reviewactions"><button class="btn" data-decision="changes_requested">修正依頼</button><button class="btn danger" data-decision="rejected">却下</button><button class="btn pri" data-decision="approved">承認</button></div>
-        <div class="reviewmeta">${review?`最新: ${esc(review.decision)} · ${esc(review.reviewer)} · ${esc(new Date(review.reviewed_at).toLocaleString('ja-JP'))}`:'人手確認は未完了です。'}</div>
+        <div class="reviewactions"><button class="btn" data-decision="changes_requested">個別調整を保存</button><button class="btn danger" data-decision="rejected">却下</button><button class="btn pri" data-decision="approved">承認</button></div>
+        <div class="reviewmeta">${review?`最新: ${esc(review.decision)} · ${esc(review.reviewer)} · ${esc(new Date(review.reviewed_at).toLocaleString('ja-JP'))}${review.reason?` · ${esc(review.reason)}`:''}`:'人手確認は未完了です。'}</div>
       </div>
     </article>`}).join('')||'<div class="empty">条件に一致する事前チェック対象assetはありません。</div>';
   $('assetPageInfo').textContent=ASSET_FILTERED.length?`${fmt(start+1)}–${fmt(Math.min(start+pageSize,ASSET_FILTERED.length))} / ${fmt(ASSET_FILTERED.length)}`:'0 / 0';
   $('assetPrevPage').disabled=ASSET_PAGE===0;$('assetNextPage').disabled=start+pageSize>=ASSET_FILTERED.length;
   document.querySelectorAll('[data-decision]').forEach(b=>b.addEventListener('click',()=>submitReview(b.closest('.asset'),b.dataset.decision)));
+  document.querySelectorAll('[data-reset-edit]').forEach(b=>b.addEventListener('click',()=>resetEditor(b.closest('.asset'))));
+}
+function linesFrom(card,selector){return card.querySelector(selector).value.split(/\n/).map(x=>x.trim()).filter(Boolean).slice(0,2)}
+function buildEditRequest(card){
+  const a=(DATA.assets||[]).find(x=>x.asset_id===card.dataset.asset),copy=a?.copy_payload||{},qa=a?.qa_payload||{};
+  if(!a)return null;
+  const edit={cta_visible:false},selected=card.querySelector('[data-source-option]:checked')?.value||'';
+  if(selected&&selected!==(qa.current_source_option_id||''))edit.source_option_id=selected;
+  const values={
+    industry:card.querySelector('[data-edit-industry]').value,
+    layout:card.querySelector('[data-edit-layout]').value,
+    area:card.querySelector('[data-edit-area]').value.trim(),
+    salon_name:card.querySelector('[data-edit-salon]').value.trim(),
+    access:linesFrom(card,'[data-edit-access]'),
+    headline:linesFrom(card,'[data-edit-headline]')
+  };
+  ['industry','area','salon_name'].forEach(k=>{if(String(values[k])!==String(copy[k]??''))edit[k]=values[k]});
+  if(values.layout!==a.layout)edit.layout=values.layout;
+  ['access','headline'].forEach(k=>{if(JSON.stringify(values[k])!==JSON.stringify(copy[k]||[]))edit[k]=values[k]});
+  const issues=[...card.querySelectorAll('[data-issue]:checked')].map(x=>x.value);
+  if(issues.length)edit.issue_types=issues;
+  const note=card.querySelector('[data-edit-note]').value.trim();if(note)edit.note=note;
+  return Object.keys(edit).length>1?edit:null;
+}
+function resetEditor(card){
+  const a=(DATA.assets||[]).find(x=>x.asset_id===card.dataset.asset),copy=a?.copy_payload||{},qa=a?.qa_payload||{};if(!a)return;
+  const current=qa.current_source_option_id||qa.source_options?.find(x=>x.selected)?.option_id||'';
+  card.querySelectorAll('[data-source-option]').forEach(x=>x.checked=x.value===current);
+  card.querySelector('[data-edit-industry]').value=copy.industry||'hair';
+  card.querySelector('[data-edit-layout]').value=a.layout||'copy_left';
+  card.querySelector('[data-edit-area]').value=copy.area||'';
+  card.querySelector('[data-edit-salon]').value=copy.salon_name||'';
+  card.querySelector('[data-edit-access]').value=(copy.access||[]).join('\n');
+  card.querySelector('[data-edit-headline]').value=(copy.headline||[]).join('\n');
+  card.querySelector('[data-edit-note]').value='';
+  card.querySelectorAll('[data-issue]').forEach(x=>x.checked=false);
 }
 async function submitReview(card,decision){
-  const assetId=card.dataset.asset,manifestSha256=card.dataset.manifest,reviewer=card.querySelector('[data-reviewer]').value.trim(),reason=(card.querySelector('[data-reason]').value.trim()||card.querySelector('[data-note]').value.trim());
+  const assetId=card.dataset.asset,manifestSha256=card.dataset.manifest,reviewer=card.querySelector('[data-reviewer]').value.trim(),editRequest=decision==='changes_requested'?buildEditRequest(card):null;
+  let reason=(card.querySelector('[data-reason]').value.trim()||card.querySelector('[data-note]').value.trim());
   const checklist={};card.querySelectorAll('[data-check]').forEach(c=>checklist[c.dataset.check]=c.checked);
   if(!reviewer)return alert('承認者名を入力してください。');
   if(decision==='approved'&&Object.values(checklist).some(v=>!v))return alert('承認には全チェック項目の合格が必要です。');
+  if(decision==='changes_requested'&&!editRequest)return alert('個別調整または指摘項目を1つ以上入力してください。');
+  if(!reason&&editRequest?.issue_types?.length)reason=editRequest.issue_types.map(v=>ISSUE_OPTIONS.find(x=>x[0]===v)?.[1]||v).join('、');
+  if(!reason&&editRequest)reason='管理画面で個別調整を指定';
   if(decision!=='approved'&&!reason)return alert('修正・却下理由を入力してください。');
   if(!confirm(`${assetId} を「${decision}」で記録しますか？`))return;
   localStorage.setItem('hb_creative_reviewer',reviewer);
-  const r=await fetch(REVIEW_API,{method:'POST',headers:{'Content-Type':'application/json',...authHeaders()},body:JSON.stringify({asset_id:assetId,manifest_sha256:manifestSha256,decision,reviewer,reason,checklist})});onAuthFail(r);
+  const r=await fetch(REVIEW_API,{method:'POST',headers:{'Content-Type':'application/json',...authHeaders()},body:JSON.stringify({asset_id:assetId,manifest_sha256:manifestSha256,decision,reviewer,reason,checklist,edit_request:editRequest})});onAuthFail(r);
   const j=await r.json();if(!r.ok)return alert(j.error+(j.detail?`: ${j.detail}`:''));
   await load();document.querySelector('[data-view="review"]').click();
 }
@@ -358,7 +463,7 @@ function renderRelease(){
 document.querySelectorAll('.tab').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('on',x===b));document.querySelectorAll('.view').forEach(v=>v.classList.toggle('on',v.id==='view-'+b.dataset.view))}));
 ['search','stageFilter','subjectFilter','overrideFilter'].forEach(id=>$(id).addEventListener('input',()=>{PAGE=0;applyFilters()}));
 $('prevPage').onclick=()=>{PAGE=Math.max(0,PAGE-1);renderTable()};$('nextPage').onclick=()=>{PAGE+=1;renderTable()};
-['assetSearch','assetReviewFilter','assetPageSize'].forEach(id=>$(id).addEventListener('input',()=>{ASSET_PAGE=0;filterAssets()}));
+['assetSearch','assetReviewFilter','assetIssueFilter','assetPageSize'].forEach(id=>$(id).addEventListener('input',()=>{ASSET_PAGE=0;filterAssets()}));
 $('assetPrevPage').onclick=()=>{ASSET_PAGE=Math.max(0,ASSET_PAGE-1);renderAssets()};$('assetNextPage').onclick=()=>{ASSET_PAGE+=1;renderAssets()};
 $('refreshBtn').onclick=load;$('downloadBtn').onclick=()=>{const blob=new Blob([JSON.stringify(DATA,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`hb02_creative_status_${new Date().toISOString().replace(/[:.]/g,'-')}.json`;a.click();URL.revokeObjectURL(a.href)};
 load();

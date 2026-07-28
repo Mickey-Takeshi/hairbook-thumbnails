@@ -50,40 +50,30 @@ THEMES: dict[str, dict[str, str]] = {
         "accent": "#d8bd91",
         "body": "#fffaf1",
         "secondary": "#e3dbcf",
-        "cta_fill": "#f4ead9",
-        "cta_text": "#1e1a15",
     },
     "warm_clay": {
         "ink": "#231612",
         "accent": "#e3aa82",
         "body": "#fff7ef",
         "secondary": "#ead9cb",
-        "cta_fill": "#f2d4bd",
-        "cta_text": "#291710",
     },
     "soft_sage": {
         "ink": "#14211d",
         "accent": "#b8d1bd",
         "body": "#f8fff9",
         "secondary": "#d6e3d9",
-        "cta_fill": "#d8eadb",
-        "cta_text": "#16251e",
     },
     "deep_blue": {
         "ink": "#121d2a",
         "accent": "#b7cce5",
         "body": "#f7fbff",
         "secondary": "#d6e0ec",
-        "cta_fill": "#dbe7f3",
-        "cta_text": "#142132",
     },
     "soft_rose": {
         "ink": "#24161b",
         "accent": "#e4b6c2",
         "body": "#fff8fa",
         "secondary": "#ead9de",
-        "cta_fill": "#f2d7de",
-        "cta_text": "#2a171d",
     },
 }
 
@@ -305,38 +295,6 @@ def _draw_micro_label(
     )
 
 
-def _draw_cta(
-    base: Image.Image,
-    draw: ImageDraw.ImageDraw,
-    box: tuple[int, int, int, int],
-    value: str,
-    theme: dict[str, str],
-) -> None:
-    _rounded_shadow(base, box, 999, alpha=68, offset=(6, 7))
-    draw = ImageDraw.Draw(base, "RGBA")
-    draw.rounded_rectangle(
-        box,
-        radius=999,
-        fill=_rgba(theme["cta_fill"], 246),
-        outline=_rgba(theme["accent"], 238),
-        width=2,
-    )
-    font = _font("gothic_bold", 30)
-    label = f"{value}  →"
-    bbox = draw.textbbox((0, 0), label, font=font)
-    text_width = bbox[2] - bbox[0]
-    text_height = bbox[3] - bbox[1]
-    draw.text(
-        (
-            (box[0] + box[2] - text_width) / 2 - bbox[0],
-            (box[1] + box[3] - text_height) / 2 - bbox[1],
-        ),
-        label,
-        font=font,
-        fill=_rgba(theme["cta_text"]),
-    )
-
-
 def _draw_access(
     draw: ImageDraw.ImageDraw,
     xy: tuple[int, int],
@@ -376,6 +334,59 @@ def _draw_access(
     return size, line_height
 
 
+def _header_spec(
+    draw: ImageDraw.ImageDraw,
+    copy: dict[str, Any],
+    *,
+    max_width: int,
+    compact: bool,
+) -> dict[str, Any]:
+    area = str(copy["area"])
+    name = str(copy["salon_name"])
+    area_font, area_size = _fit_font(
+        draw,
+        [area],
+        "gothic_bold",
+        31 if not compact else 28,
+        24,
+        max_width,
+    )
+    name_lines, name_font, name_size = _fit_name(
+        draw,
+        name,
+        max_width,
+        start=46 if compact else 50,
+        minimum=32,
+    )
+    line_height = name_size + 8
+    block_height = 56 + len(name_lines) * line_height
+    content_width = min(
+        max_width,
+        max(
+            _text_width(draw, area, area_font),
+            max(
+                _text_width(draw, line, name_font)
+                for line in name_lines
+            ),
+        )
+        + 18,
+    )
+    return {
+        "area": area,
+        "area_font": area_font,
+        "area_font_size": area_size,
+        "name": name,
+        "name_lines": name_lines,
+        "name_font": name_font,
+        "name_font_size": name_size,
+        "name_line_count": len(name_lines),
+        "line_height": line_height,
+        "block_height": block_height,
+        "content_width": content_width,
+        "max_width": max_width,
+    }
+
+
 def _draw_header(
     base: Image.Image,
     draw: ImageDraw.ImageDraw,
@@ -388,36 +399,19 @@ def _draw_header(
     plate: bool = False,
 ) -> int:
     x, y = xy
-    area = str(copy["area"])
-    name = str(copy["salon_name"])
-    area_font, _ = _fit_font(
+    spec = _header_spec(
         draw,
-        [area],
-        "gothic_bold",
-        26 if not compact else 23,
-        20,
-        max_width,
+        copy,
+        max_width=max_width,
+        compact=compact,
     )
-    name_lines, name_font, name_size = _fit_name(
-        draw,
-        name,
-        max_width,
-        start=40 if compact else 44,
-        minimum=27,
-    )
-    line_height = name_size + 8
-    block_height = 46 + len(name_lines) * line_height
-    content_width = min(
-        max_width,
-        max(
-            _text_width(draw, area, area_font),
-            max(
-                _text_width(draw, line, name_font)
-                for line in name_lines
-            ),
-        )
-        + 18,
-    )
+    area = spec["area"]
+    area_font = spec["area_font"]
+    name_lines = spec["name_lines"]
+    name_font = spec["name_font"]
+    line_height = spec["line_height"]
+    block_height = spec["block_height"]
+    content_width = spec["content_width"]
     if plate:
         box = (
             x - 18,
@@ -430,22 +424,29 @@ def _draw_header(
         draw.rounded_rectangle(
             box,
             radius=16,
-            fill=_rgba(theme["ink"], 174),
-            outline=_rgba(theme["accent"], 78),
-            width=1,
+            fill=_rgba(theme["ink"], 218),
+            outline=_rgba(theme["accent"], 146),
+            width=2,
         )
     accent = _rgba(theme["accent"])
     body = _rgba(theme["body"])
+    area_box = draw.textbbox((0, 0), area, font=area_font)
+    area_width = area_box[2] - area_box[0]
+    draw.rounded_rectangle(
+        (x - 4, y - 4, x + area_width + 18, y + 34),
+        radius=7,
+        fill=accent,
+    )
     draw.text(
-        (x, y),
+        (x + 7, y + 1),
         area,
         font=area_font,
-        fill=accent,
+        fill=_rgba(theme["ink"]),
         anchor="lt",
     )
     _draw_multiline(
         draw,
-        (x, y + 39),
+        (x, y + 48),
         name_lines,
         name_font,
         body,
@@ -480,6 +481,7 @@ def _draw_side_layout(
         xy=(x, 58),
         max_width=max_width,
         compact=True,
+        plate=True,
     )
     industry = INDUSTRY_LABELS[str(copy["industry"])]
     headline_top = max(310, 86 + header_height + 72)
@@ -524,13 +526,6 @@ def _draw_side_layout(
         theme,
         max_width,
         start=31,
-    )
-    _draw_cta(
-        base,
-        draw,
-        (x, 938, min(1024, x + 342), 1020),
-        str(copy["cta"]),
-        theme,
     )
 
 
@@ -592,13 +587,6 @@ def _draw_bottom_layout(
         610,
         start=31,
     )
-    _draw_cta(
-        base,
-        draw,
-        (734, 944, 1022, 1024),
-        str(copy["cta"]),
-        theme,
-    )
 
 
 def _draw_top_layout(
@@ -617,6 +605,7 @@ def _draw_top_layout(
         xy=(58, 52),
         max_width=870,
         compact=True,
+        plate=True,
     )
     micro_y = min(242, 78 + header_height + 34)
     _draw_micro_label(
@@ -655,13 +644,6 @@ def _draw_top_layout(
         theme,
         620,
         start=31,
-    )
-    _draw_cta(
-        base,
-        draw,
-        (734, 944, 1022, 1024),
-        str(copy["cta"]),
-        theme,
     )
 
 
@@ -706,12 +688,15 @@ def load_manifest(path: Path) -> dict[str, Any]:
             "salon_name",
             "access",
             "headline",
-            "cta",
         ):
             if not copy.get(field):
                 raise ManifestError(
                     f"{asset_id}: copy.{field} is required"
                 )
+        if str(copy.get("cta") or "").strip():
+            raise ManifestError(
+                f"{asset_id}: CTA must be omitted for catalog creatives"
+            )
         if copy["industry"] not in INDUSTRY_LABELS:
             raise ManifestError(
                 f"{asset_id}: unsupported industry "
@@ -732,7 +717,14 @@ def load_manifest(path: Path) -> dict[str, Any]:
             raise ManifestError(
                 f"{asset_id}: source vision decision is not approved"
             )
-        if float(vision.get("person_score") or 0) < 0.30:
+        is_nail_service = (
+            copy["industry"] in {"nail", "eye_nail"}
+            and vision.get("nail_service_approved") is True
+        )
+        if (
+            not is_nail_service
+            and float(vision.get("person_score") or 0) < 0.30
+        ):
             raise ManifestError(
                 f"{asset_id}: person score is below the hard floor"
             )
@@ -743,6 +735,27 @@ def load_manifest(path: Path) -> dict[str, Any]:
         if vision.get("treatment_flags"):
             raise ManifestError(
                 f"{asset_id}: treatment-scene flags are present"
+            )
+        if (
+            not is_nail_service
+            and vision.get("text_flags")
+        ):
+            raise ManifestError(
+                f"{asset_id}: source contains baked-in text"
+            )
+        if (
+            is_nail_service
+            and vision.get("text_after_crop_clear") is not True
+        ):
+            raise ManifestError(
+                f"{asset_id}: nail crop still contains source text"
+            )
+        if any(
+            re.search(r"徒歩\s*0\s*(?:分|秒)", str(line))
+            for line in copy["access"]
+        ):
+            raise ManifestError(
+                f"{asset_id}: access must not contain zero-minute walking time"
             )
     return manifest
 
@@ -776,6 +789,37 @@ def _render_asset(
     with Image.open(source_path) as opened:
         source = ImageOps.exif_transpose(opened).convert("RGB")
         source_size = source.size
+        crop_box = image_cfg.get("crop_box")
+        if crop_box:
+            if (
+                not isinstance(crop_box, list)
+                or len(crop_box) != 4
+                or any(
+                    not isinstance(value, (int, float))
+                    for value in crop_box
+                )
+            ):
+                raise ManifestError(
+                    f"{asset_id}: crop_box must contain four numbers"
+                )
+            left, top, right, bottom = [
+                float(value) for value in crop_box
+            ]
+            if not (
+                0 <= left < right <= 1
+                and 0 <= top < bottom <= 1
+            ):
+                raise ManifestError(
+                    f"{asset_id}: crop_box is outside the source image"
+                )
+            source = source.crop(
+                (
+                    round(left * source.width),
+                    round(top * source.height),
+                    round(right * source.width),
+                    round(bottom * source.height),
+                )
+            )
         base = ImageOps.fit(
             source,
             (W, H),
@@ -809,6 +853,20 @@ def _render_asset(
     else:
         _draw_bottom_layout(base, asset["copy"], theme)
 
+    header_width = (
+        512
+        if layout in {"copy_left", "copy_right"}
+        else 870
+        if layout == "top_editorial"
+        else 660
+    )
+    header_metrics = _header_spec(
+        ImageDraw.Draw(base, "RGBA"),
+        asset["copy"],
+        max_width=header_width,
+        compact=True,
+    )
+
     output_dir.mkdir(parents=True, exist_ok=True)
     output_path = output_dir / f"{asset_id}.jpg"
     preview_path = output_dir / f"{asset_id}--mobile.jpg"
@@ -839,7 +897,11 @@ def _render_asset(
             str(value) for value in asset.get("product_ids") or []
         ],
         "design_version": DESIGN_VERSION,
-        "representation": "salon_page_person_image_square_edit",
+        "representation": (
+            "salon_page_nail_service_square_edit"
+            if asset["copy"]["industry"] in {"nail", "eye_nail"}
+            else "salon_page_person_image_square_edit"
+        ),
         "render_mode": "complete_banner",
         "source_path": str(source_path),
         "source_page_url": str(
@@ -872,6 +934,18 @@ def _render_asset(
         "layout_reason": str(asset.get("layout_reason") or ""),
         "theme": str(asset["theme"]),
         "industry": str(asset["copy"]["industry"]),
+        "header_metrics": {
+            "area_font_size": int(
+                header_metrics["area_font_size"]
+            ),
+            "salon_name_font_size": int(
+                header_metrics["name_font_size"]
+            ),
+            "salon_name_lines": int(
+                header_metrics["name_line_count"]
+            ),
+            "max_width": int(header_metrics["max_width"]),
+        },
     }
 
 
