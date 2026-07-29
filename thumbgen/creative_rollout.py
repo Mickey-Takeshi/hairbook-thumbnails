@@ -141,6 +141,33 @@ def _check(
     )
 
 
+def _staff_styles_source_matches(
+    asset: dict[str, Any],
+) -> tuple[bool, str]:
+    landing_url = str(asset.get("landing_url") or "").split("?", 1)[0]
+    match = re.fullmatch(
+        r"https://hairbook\.jp/(?:(?:salons/\d+)/)?staffs/(\d+)/(?:styles/)?",
+        landing_url,
+    )
+    if not match:
+        return True, "not a staff landing"
+    staff_id = match.group(1)
+    source = asset.get("source") or {}
+    source_type = str(source.get("source_type") or "")
+    source_page_url = str(source.get("page_url") or "")
+    passed = (
+        source_type == "hairbook_stylist_style_photo"
+        and f"/staffs/{staff_id}/styles/" in source_page_url
+    )
+    return (
+        passed,
+        (
+            f"landing_staff={staff_id}, source_type={source_type!r}, "
+            f"source_page_url={source_page_url!r}"
+        ),
+    )
+
+
 def run_qa(
     manifest_path: Path,
     render_index_path: Path,
@@ -344,6 +371,15 @@ def run_qa(
         if spec["design_version"] == person_square.DESIGN_VERSION:
             source_vision = (asset.get("source") or {}).get("vision") or {}
             copy_payload = asset.get("copy") or {}
+            staff_source_ok, staff_source_detail = (
+                _staff_styles_source_matches(asset)
+            )
+            _check(
+                checks,
+                "staff_landing_uses_matching_styles_gallery",
+                staff_source_ok,
+                staff_source_detail,
+            )
             is_nail_service = (
                 copy_payload.get("industry") in {"nail", "eye_nail"}
                 and source_vision.get("nail_service_approved") is True
@@ -818,6 +854,15 @@ def run_preflight(
         record = render_map.get(asset_id)
         qa_item = qa_map.get(asset_id)
         approval = approval_map.get(asset_id)
+        staff_source_ok, staff_source_detail = (
+            _staff_styles_source_matches(asset)
+        )
+        _check(
+            item_checks,
+            "staff_landing_uses_matching_styles_gallery",
+            staff_source_ok,
+            staff_source_detail,
+        )
         _check(item_checks, "render_record", record is not None, "present")
         _check(
             item_checks,

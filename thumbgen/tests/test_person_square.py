@@ -71,6 +71,32 @@ class PersonSquareSourcePolicyTest(unittest.TestCase):
 
         self.assertEqual(candidates, [style])
 
+    def test_rollout_gate_rejects_profile_for_staff_landing(self):
+        valid, _ = creative_rollout._staff_styles_source_matches(
+            {
+                "landing_url": "https://hairbook.jp/staffs/16979/",
+                "source": {
+                    "source_type": "hairbook_staff_profile_photo",
+                    "page_url": "https://hairbook.jp/staffs/16979/",
+                },
+            }
+        )
+        self.assertFalse(valid)
+        valid, _ = creative_rollout._staff_styles_source_matches(
+            {
+                "landing_url": (
+                    "https://hairbook.jp/staffs/16979/?utm_source=meta"
+                ),
+                "source": {
+                    "source_type": "hairbook_stylist_style_photo",
+                    "page_url": (
+                        "https://hairbook.jp/staffs/16979/styles/166989/"
+                    ),
+                },
+            }
+        )
+        self.assertTrue(valid)
+
 
 class PersonSquareCopyTest(unittest.TestCase):
     def test_html_is_removed_and_nail_copy_matches_industry(self):
