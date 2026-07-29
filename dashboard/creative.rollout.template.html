@@ -189,7 +189,7 @@ td{padding:8px 9px;border-bottom:1px solid #eee9e1;vertical-align:middle}tbody t
       </div>
     </div>
   </section>
-  <div class="foot">SOURCE OF TRUTH: live catalog feed + thumbnail_override + approved asset/review records. Dashboard actions never write the feed H column directly.</div>
+  <div class="foot">SOURCE OF TRUTH: Meta本番カタログ + GitHub Actions公開履歴 + 承認済みasset/review。画像差し替えはGoogle Sheetsを変更しません。</div>
 </main>
 
 <script src="/api-client.js"></script>
@@ -198,7 +198,7 @@ if(!apiClient.isAuthenticated()){
   location.replace('/sales_login.html?redirect='+encodeURIComponent(location.pathname+location.search));
 }
 const API='/api/creative-status', REVIEW_API='/api/creative-review';
-const PUBLISH_WORKFLOW='https://github.com/cajon-inc/hairbook-thumbnails/actions/workflows/person-v3-publish.yml';
+const PUBLISH_WORKFLOW='https://github.com/cajon-inc/meta-managements/actions/workflows/hairbook-catalog-creative.yml';
 const LABELS={
   source_pending:'素材未選定',source_selected:'素材選定済み',rendered:'制作済み',qa_failed:'QA不合格',
   review_pending:'人手確認待ち',review_rejected:'要修正',approved:'承認済み',publish_ready:'公開準備完了',
@@ -455,7 +455,7 @@ function renderRelease(){
   ];
   $('gates').innerHTML=gates.map(([ok,t,d])=>`<div class="gate ${ok?'pass':'fail'}"><div class="gicon">${ok?'✓':'!'}</div><div><b>${esc(t)}</b><p>${esc(d)}</p></div></div>`).join('');
   $('snapshotCode').textContent='snapshot: '+DATA.sheet_snapshot_sha256;
-  $('executeBtn').disabled=!s.full_rollout_ready;$('executeBtn').onclick=()=>{if(confirm('GitHub Actionsの本番承認画面を開きます。ダッシュボードから直接Sheetは変更しません。'))window.open(PUBLISH_WORKFLOW,'_blank','noopener')};
+  $('executeBtn').disabled=!s.full_rollout_ready;$('executeBtn').onclick=()=>{if(confirm('GitHub Actionsの本番承認画面を開きます。承認済み画像だけをMetaの画像専用補助フィードへ反映します。'))window.open(PUBLISH_WORKFLOW,'_blank','noopener')};
   const canRollback=s.latest_batch&&['published','rollback_required'].includes(s.latest_batch.status);
   $('rollbackBtn').disabled=!canRollback;$('rollbackBtn').onclick=()=>window.open(PUBLISH_WORKFLOW,'_blank','noopener');
   $('actionHelp').textContent=s.full_rollout_ready?'全条件が完了しました。Actionsでmanifest hashを再確認して実行します。':`未解決 ${fmt(s.blocking_products)} product。先に素材選定・制作・QA・承認を完了してください。`;
