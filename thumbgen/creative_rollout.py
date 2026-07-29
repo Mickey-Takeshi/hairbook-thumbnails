@@ -683,7 +683,9 @@ def init_review(
                 "reviewer": "",
                 "reviewed_at": "",
                 "checklist_version": spec["checklist_version"],
-                "checklist": {key: None for key, _ in MANUAL_CHECKS},
+                "checklist": {
+                    key: None for key, _ in spec["manual_checks"]
+                },
                 "notes": "",
             }
         )
@@ -832,7 +834,8 @@ def run_preflight(
         )
         checklist = approval.get("checklist") if approval else {}
         checklist_ok = bool(checklist) and all(
-            checklist.get(key) is True for key, _ in MANUAL_CHECKS
+            checklist.get(key) is True
+            for key, _ in spec["manual_checks"]
         )
         _check(
             item_checks,
