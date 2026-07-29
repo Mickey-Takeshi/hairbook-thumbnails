@@ -16,7 +16,60 @@ import build_person_square_catalog as builder
 import apply_person_square_edits as edit_applier
 import creative_rollout
 import person_square
-from build_person_v3_catalog import PageInfo
+from build_person_v3_catalog import PageInfo, SourceCandidate
+
+
+class PersonSquareSourcePolicyTest(unittest.TestCase):
+    def test_staff_landing_keeps_only_matching_gallery_styles(self):
+        style = SourceCandidate(
+            source_type="hairbook_stylist_style_photo",
+            record_id="166989",
+            page_url="https://hairbook.jp/staffs/16979/styles/166989/",
+            image_url="https://hairbook.jp/photo/Style/166989/",
+        )
+        profile = SourceCandidate(
+            source_type="hairbook_staff_profile_photo",
+            record_id="16979",
+            page_url="https://hairbook.jp/staffs/16979/",
+            image_url="https://hairbook.jp/thumbnail/StaffProfile/16979/",
+        )
+        override = SourceCandidate(
+            source_type="official_salon_person_photo",
+            record_id="official",
+            page_url="https://example.com/staff",
+            image_url="https://example.com/staff.jpg",
+        )
+        info = PageInfo(
+            landing_url="https://hairbook.jp/staffs/16979/",
+            component="staff/profiles/show",
+            version="v1",
+            salon_id="44645",
+            stylist_id="16979",
+            salon_name="e's【イーズ】大阪 梅田店",
+            location="梅田駅 徒歩5分",
+            region="大阪府",
+            city="大阪市",
+            nearest_stations=["梅田"],
+            source_text="ヘアサロン",
+            staff_name="神崎 夢羽",
+            candidates=[style, profile],
+        )
+        candidates = builder._page_source_candidates(
+            landing_url=info.landing_url,
+            rows=[
+                {
+                    "id": "44645_16979_01TEST",
+                    "link": info.landing_url,
+                    "image_link": "https://hairbook.jp/thumbnail/Post/01TEST/",
+                    "title": "e's",
+                    "description": "カラー",
+                }
+            ],
+            info=info,
+            override_candidates={"44645": [override]},
+        )
+
+        self.assertEqual(candidates, [style])
 
 
 class PersonSquareCopyTest(unittest.TestCase):

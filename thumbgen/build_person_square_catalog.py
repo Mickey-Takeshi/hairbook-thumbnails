@@ -51,6 +51,7 @@ from build_person_v3_catalog import (
     _manifest_source_path,
     _read_feed_csv,
     _sha256,
+    _staff_styles_source_url,
 )
 from creative_inventory import parse_product_id
 
@@ -305,6 +306,37 @@ def _dedupe_candidates(
         seen.add(key)
         output.append(candidate)
     return output
+
+
+def _page_source_candidates(
+    *,
+    landing_url: str,
+    rows: list[dict[str, str]],
+    info: PageInfo | None,
+    override_candidates: dict[str, list[SourceCandidate]],
+) -> list[SourceCandidate]:
+    """Apply the source boundary for one catalog landing page."""
+    staff_styles_url = _staff_styles_source_url(landing_url)
+    candidates = list(info.candidates) if info else []
+    if staff_styles_url:
+        # A staff landing must use a finished style from that staff's gallery.
+        # Profile, feed, official override and same-salon images are not valid
+        # substitutes because they do not represent the destination context.
+        return _dedupe_candidates(
+            candidate
+            for candidate in candidates
+            if candidate.source_type == "hairbook_stylist_style_photo"
+        )
+    if info:
+        candidates.extend(
+            override_candidates.get(info.salon_id, [])
+        )
+    candidates.extend(
+        candidate
+        for candidate in (_feed_candidate(row) for row in rows)
+        if candidate
+    )
+    return _dedupe_candidates(candidates)
 
 
 def _download_all_candidates(
@@ -2287,17 +2319,12 @@ def build_catalog(
     all_candidates: list[SourceCandidate] = []
     for key, group in grouped.items():
         info = page_infos.get(key)
-        candidates = list(info.candidates) if info else []
-        if info:
-            candidates.extend(
-                override_candidates.get(info.salon_id, [])
-            )
-        candidates.extend(
-            candidate
-            for candidate in (_feed_candidate(row) for row in group)
-            if candidate
+        candidates = _page_source_candidates(
+            landing_url=key,
+            rows=group,
+            info=info,
+            override_candidates=override_candidates,
         )
-        candidates = _dedupe_candidates(candidates)
         candidates = [
             candidate
             for candidate in candidates
@@ -2412,12 +2439,13 @@ def build_catalog(
                 scored_by_page.get(key, []),
                 row_industry,
             )
+            staff_styles_only = bool(_staff_styles_source_url(key))
             salon_pool = (
                 _selected_pool(
                     scored_by_salon.get(info.salon_id, []),
                     row_industry,
                 )
-                if info
+                if info and not staff_styles_only
                 else []
             )
             pool = local_pool or salon_pool
@@ -2563,6 +2591,9 @@ def build_catalog(
             "minimum_person_score": MIN_PERSON_SCORE,
             "maximum_treatment_risk": MAX_TREATMENT_RISK,
             "same_salon_fallback_allowed": True,
+            "staff_landing_source": "matching_staff_styles_section_only",
+            "staff_landing_same_salon_fallback_allowed": False,
+            "staff_landing_profile_feed_override_fallback_allowed": False,
             "official_salon_link_fallback_allowed": bool(
                 override_candidates
             ),

@@ -3,6 +3,7 @@ from __future__ import annotations
 import sys
 import unittest
 from pathlib import Path
+from unittest.mock import call, patch
 
 
 THUMBGEN = Path(__file__).resolve().parents[1]
@@ -12,9 +13,11 @@ if str(THUMBGEN) not in sys.path:
 from build_person_v3_catalog import (  # noqa: E402
     PageInfo,
     _clean_salon_name,
+    _fetch_page_info,
     _headline_copy,
     _landing_key,
     _legacy_style_candidates,
+    _staff_styles_source_url,
 )
 
 
@@ -79,6 +82,86 @@ class PersonV3CatalogSourceTest(unittest.TestCase):
         )
         with self.assertRaises(Exception):
             _landing_key("https://example.com/salons/61/")
+
+    def test_staff_landing_maps_to_its_styles_section(self) -> None:
+        self.assertEqual(
+            _staff_styles_source_url(
+                "https://hairbook.jp/staffs/16979/?utm_source=meta"
+            ),
+            "https://hairbook.jp/staffs/16979/styles/",
+        )
+        self.assertEqual(
+            _staff_styles_source_url(
+                "https://hairbook.jp/salons/44645/staffs/16979/"
+            ),
+            "https://hairbook.jp/salons/44645/staffs/16979/styles/",
+        )
+        self.assertIsNone(
+            _staff_styles_source_url("https://hairbook.jp/salons/44645/")
+        )
+
+    def test_staff_page_fetches_gallery_and_excludes_profile_photo(self) -> None:
+        landing_url = "https://hairbook.jp/staffs/16979/"
+        styles_url = "https://hairbook.jp/staffs/16979/styles/"
+        profile_payload = {
+            "component": "staff/profiles/show",
+            "version": "v1",
+            "props": {
+                "sharedViews": {
+                    "salonInfo": {
+                        "name": "e's【イーズ】大阪 梅田店",
+                        "location": "梅田駅 徒歩5分",
+                    }
+                },
+                "nearestStations": [{"name": "梅田"}],
+                "salon": {"description": "ヘアサロン"},
+                "staffProfile": {"id": 16979, "name": "神崎 夢羽"},
+                "styles": [{"id": 1}],
+            },
+        }
+        styles_payload = {
+            "component": "staff/styles/index",
+            "version": "v1",
+            "props": {
+                "styles": [
+                    {"id": 166980, "name": "暖色カラー"},
+                    {"id": 167002, "name": "透明感カラー"},
+                ]
+            },
+        }
+        with patch(
+            "build_person_v3_catalog._fetch_landing_payload",
+            side_effect=[profile_payload, styles_payload],
+        ) as fetch:
+            info = _fetch_page_info(
+                landing_url,
+                {
+                    "id": "44645_16979_01TEST",
+                    "title": "梅田駅 徒歩5分 e's",
+                    "address.region": "大阪府",
+                    "address.city": "大阪市",
+                },
+            )
+
+        self.assertEqual(
+            fetch.call_args_list,
+            [call(landing_url), call(styles_url)],
+        )
+        self.assertEqual(info.error, "")
+        self.assertEqual(
+            [candidate.record_id for candidate in info.candidates],
+            ["166980", "167002"],
+        )
+        self.assertTrue(
+            all(
+                candidate.source_type == "hairbook_stylist_style_photo"
+                for candidate in info.candidates
+            )
+        )
+        self.assertEqual(
+            info.candidates[0].page_url,
+            "https://hairbook.jp/staffs/16979/styles/166980/",
+        )
 
     def test_legacy_styles_use_existing_page_image_urls(self) -> None:
         candidates = _legacy_style_candidates(

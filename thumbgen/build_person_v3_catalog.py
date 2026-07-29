@@ -176,6 +176,23 @@ def _landing_key(url: str) -> str:
     return urlunsplit(("https", parts.netloc, path, "", ""))
 
 
+def _staff_styles_source_url(url: str) -> str | None:
+    """Return the matching styles gallery for a Hairbook staff landing."""
+    parts = urlsplit(str(url).strip())
+    if parts.scheme != "https" or parts.netloc != "hairbook.jp":
+        return None
+    path = re.sub(r"/+$", "/", parts.path or "/")
+    match = re.fullmatch(
+        r"/(?:(?:salons/\d+)/)?staffs/\d+/(?:styles/)?",
+        path,
+    )
+    if not match:
+        return None
+    if not path.endswith("/styles/"):
+        path = f"{path.rstrip('/')}/styles/"
+    return urlunsplit(("https", parts.netloc, path, "", ""))
+
+
 def _extract_data_page(text: str, url: str) -> dict[str, Any]:
     parser = _DataPageParser()
     parser.feed(text)
@@ -251,6 +268,7 @@ def _candidate_list(
     salon_id: str,
     stylist_id: str,
     styles: list[dict[str, Any]],
+    staff_styles_url: str = "",
 ) -> list[SourceCandidate]:
     seen: set[str] = set()
     candidates: list[SourceCandidate] = []
@@ -259,10 +277,12 @@ def _candidate_list(
         if not style_id or style_id in seen:
             continue
         seen.add(style_id)
-        if stylist_id:
-            page_url = (
-                f"https://hairbook.jp/staffs/{stylist_id}/styles/{style_id}/"
+        if stylist_id or staff_styles_url:
+            styles_base = (
+                staff_styles_url
+                or f"https://hairbook.jp/staffs/{stylist_id}/styles/"
             )
+            page_url = f"{styles_base.rstrip('/')}/{style_id}/"
             source_type = "hairbook_stylist_style_photo"
         else:
             page_url = (
@@ -442,7 +462,16 @@ def _fetch_page_info(
         props = payload.get("props") or {}
         component = str(payload.get("component") or "")
         shared = (props.get("sharedViews") or {}).get("salonInfo") or {}
-        styles = _salon_style_items(landing_url, payload)
+        staff_styles_url = _staff_styles_source_url(landing_url)
+        styles_payload = (
+            _fetch_landing_payload(staff_styles_url)
+            if staff_styles_url and staff_styles_url != landing_url
+            else payload
+        )
+        styles = _salon_style_items(
+            staff_styles_url or landing_url,
+            styles_payload,
+        )
         salon_name = str(
             shared.get("name")
             or (props.get("salon") or {}).get("name")
@@ -481,11 +510,16 @@ def _fetch_page_info(
                 salon_id=salon_id,
                 stylist_id=stylist_id,
                 styles=styles,
+                staff_styles_url=staff_styles_url or "",
             )
         )
-        profile_candidates = _staff_profile_candidates(
-            props=props,
-            stylist_id=stylist_id,
+        profile_candidates = (
+            []
+            if staff_styles_url
+            else _staff_profile_candidates(
+                props=props,
+                stylist_id=stylist_id,
+            )
         )
         candidate_keys = {
             (candidate.source_type, candidate.record_id)
@@ -497,7 +531,7 @@ def _fetch_page_info(
             if (candidate.source_type, candidate.record_id)
             not in candidate_keys
         )
-        if not candidates:
+        if not candidates and not staff_styles_url:
             alternate = _alternate_staff_payload(
                 stylist_id=stylist_id,
                 current_landing_url=landing_url,
